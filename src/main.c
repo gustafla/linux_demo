@@ -128,11 +128,11 @@ int main(void) {
                     SDL_Log("Tracks saved.\n");
                 }
 #endif
-            } // else if (e.type == SDL_WINDOWEVENT) {
-            //    if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-            //        demo_resize(e.window.data1, e.window.data2);
-            //    }
-            //}
+            } else if (e.type == SDL_WINDOWEVENT) {
+                if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+                    demo_resize(demo, e.window.data1, e.window.data2);
+                }
+            }
         }
 
         // Get time from music player

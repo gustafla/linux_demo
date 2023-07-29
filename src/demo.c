@@ -25,6 +25,11 @@ static const GLfloat quad[] = {-1.f, -1., 0., 0., 1.,  -1., 1., 0.,
                                1.,   1.,  1., 1., -1., 1.,  0., 1.};
 
 typedef struct {
+    GLuint framebuffer;
+    GLuint framebuffer_texture;
+} fbo_t;
+
+typedef struct {
     int width;
     int height;
     int output_width;
@@ -32,7 +37,35 @@ typedef struct {
     GLuint quad_buffer;
     GLuint vao;
     GLuint effect_program;
+    GLuint post_program;
+    fbo_t *post_fb;
+    fbo_t *output_fb;
 } demo_t;
+
+static fbo_t *create_framebuffer(GLsizei width, GLsizei height) {
+    fbo_t *fbo = malloc(sizeof(fbo_t));
+    if (!fbo) {
+        return NULL;
+    }
+
+    glGenFramebuffers(1, &fbo->framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo->framebuffer);
+    glActiveTexture(GL_TEXTURE0);
+    glGenTextures(1, &fbo->framebuffer_texture);
+    glBindTexture(GL_TEXTURE_2D, fbo->framebuffer_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA,
+                 GL_HALF_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                           fbo->framebuffer_texture, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        fprintf(stderr, "FBO not complete\n");
+        return NULL;
+    }
+
+    return fbo;
+}
 
 demo_t *demo_init(int width, int height) {
     demo_t *demo = calloc(1, sizeof(demo_t));
@@ -73,10 +106,23 @@ demo_t *demo_init(int width, int height) {
     demo->effect_program =
         link_program(2, (GLuint[]){vertex_shader, fragment_shader});
 
+    GLuint post_shader = compile_shader_file("data/post.frag");
+    if (!post_shader) {
+        return NULL;
+    }
+
+    demo->post_program =
+        link_program(2, (GLuint[]){vertex_shader, post_shader});
+
+    demo->post_fb = create_framebuffer(width, height);
+    demo->output_fb = create_framebuffer(width, height);
+
     return demo;
 }
 
 void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
+    glBindFramebuffer(GL_FRAMEBUFFER, demo->post_fb->framebuffer);
+    glClear(GL_COLOR_BUFFER_BIT);
     glViewport(0, 0, demo->width, demo->height);
 
     glUseProgram(demo->effect_program);
@@ -86,6 +132,32 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glBindVertexArray(demo->vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, demo->output_fb->framebuffer);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glViewport(0, 0, demo->width, demo->height);
+
+    glUseProgram(demo->post_program);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, demo->post_fb->framebuffer_texture);
+    glUniform1i(glGetUniformLocation(demo->post_program, "u_InputSampler"), 0);
+    glUniform1f(glGetUniformLocation(demo->post_program, "u_RocketRow"),
+                rocket_row);
+
+    glBindVertexArray(demo->vao);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, demo->output_fb->framebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    // glClear(GL_COLOR_BUFFER_BIT);
+    glBlitFramebuffer(0, 0, demo->width, demo->height, 0, 0, demo->output_width,
+                      demo->output_height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+}
+
+void demo_resize(demo_t *demo, int width, int height) {
+    demo->output_width = width;
+    demo->output_height = height;
 }
 
 void demo_deinit(demo_t *demo) {
