@@ -101,7 +101,7 @@ int main(void) {
 #endif
 
     // Initialize demo rendering
-    demo_t *demo = demo_init();
+    demo_t *demo = demo_init(WIDTH, HEIGHT);
     if (!demo) {
         return 1;
     }

@@ -50,20 +50,11 @@ static GLenum type_to_enum(const char *shader_type) {
     return GL_INVALID_ENUM;
 }
 
-static void shader_source(GLuint shader, const char *src, const char *defines) {
-    const char *srcs[] = {src, src};
-    if (defines) {
-        srcs[0] = defines;
-    }
-    glShaderSource(shader, defines ? 2 : 1, srcs, NULL);
-}
-
-GLuint compile_shader(const char *shader_src, const char *shader_type,
-                      const char *defines) {
+GLuint compile_shader(const char *shader_src, const char *shader_type) {
     GLuint shader;
 
     shader = glCreateShader(type_to_enum(shader_type));
-    shader_source(shader, shader_src, defines);
+    glShaderSource(shader, 1, &shader_src, NULL);
     glCompileShader(shader);
 
     GLint status;
@@ -81,7 +72,7 @@ GLuint compile_shader(const char *shader_src, const char *shader_type,
     return shader;
 }
 
-GLuint compile_shader_file(const char *filename, const char *defines) {
+GLuint compile_shader_file(const char *filename) {
     char *shader_src = NULL;
 
     if (read_file(filename, &shader_src) == 0) {
@@ -96,7 +87,7 @@ GLuint compile_shader_file(const char *filename, const char *defines) {
         }
     } while (ret);
 
-    GLuint shader = compile_shader(shader_src, shader_type, defines);
+    GLuint shader = compile_shader(shader_src, shader_type);
     free(shader_src);
 
     if (shader == 0) {
@@ -104,4 +95,28 @@ GLuint compile_shader_file(const char *filename, const char *defines) {
     }
 
     return shader;
+}
+
+GLuint link_program(size_t count, GLuint *shaders) {
+    GLuint program = glCreateProgram();
+
+    for (size_t i = 0; i < count; i++) {
+        glAttachShader(program, shaders[i]);
+    }
+
+    glLinkProgram(program);
+
+    GLint status;
+    glGetProgramiv(program, GL_LINK_STATUS, &status);
+    if (status == GL_FALSE) {
+        GLint log_len;
+        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_len);
+        GLchar *log = malloc(sizeof(GLchar) * log_len);
+        glGetProgramInfoLog(program, log_len, NULL, log);
+        fprintf(stderr, "Program linking failed.\n%s\n", log);
+        free(log);
+        return 0;
+    }
+
+    return program;
 }
