@@ -7,7 +7,9 @@
 #define HEIGHT 1080
 #define BEATS_PER_MINUTE 120.0
 #define ROWS_PER_BEAT 8.
+#define ROW_RATE ((BEATS_PER_MINUTE / 60.) * ROWS_PER_BEAT)
 
+#ifdef DEBUG
 typedef struct {
     music_player_t *player;
     double row_rate;
@@ -33,6 +35,7 @@ static struct sync_cb rocket_callbacks = {
     .set_row = set_row,
     .is_playing = is_playing,
 };
+#endif
 
 int main(int argc, char **argv) {
     // Initialize SDL
@@ -100,11 +103,11 @@ int main(int argc, char **argv) {
         SDL_Log("Waiting for Rocket editor...\n");
         SDL_Delay(200);
     }
-#endif
 
     // Set rocket callback data
-    rocket_userdata_t rocket_userdata = {
-        .player = player, .row_rate = (BEATS_PER_MINUTE / 60.) * ROWS_PER_BEAT};
+    rocket_userdata_t rocket_userdata = {.player = player,
+                                         .row_rate = ROW_RATE};
+#endif
 
     // Initialize demo rendering
     demo_t *demo = demo_init();
@@ -143,14 +146,16 @@ int main(int argc, char **argv) {
 
         // Get time from music player
         double time = player_get_time(player);
-        rocket_row = time * rocket_userdata.row_rate;
+        rocket_row = time * ROW_RATE;
 
         // Update rocket
+#ifdef DEBUG
         if (sync_update(rocket, (int)rocket_row, &rocket_callbacks,
                         (void *)&rocket_userdata)) {
             SDL_Log("Rocket disconnected\n");
             running = 0;
         }
+#endif
 
         // Render. This does draw calls.
         demo_render(demo, rocket, rocket_row);
@@ -161,6 +166,7 @@ int main(int argc, char **argv) {
 
 #ifdef DEBUG
     sync_save_tracks(rocket);
+    SDL_Log("Tracks saved.\n");
 #endif
 
     demo_deinit(demo);
