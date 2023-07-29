@@ -65,8 +65,8 @@ int main(void) {
         return 1;
     }
 
-    // Hide cursor when building a non-debug build
 #ifndef DEBUG
+    // Hide cursor when building a non-debug build
     SDL_ShowCursor(SDL_DISABLE);
 #endif
 
@@ -122,12 +122,12 @@ int main(void) {
                     e.key.keysym.sym == SDLK_q) {
                     running = 0;
                 }
-                if (e.key.keysym.sym == SDLK_s) {
 #ifdef DEBUG
+                if (e.key.keysym.sym == SDLK_s) {
                     sync_save_tracks(rocket);
                     SDL_Log("Tracks saved.\n");
-#endif
                 }
+#endif
             } // else if (e.type == SDL_WINDOWEVENT) {
             //    if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
             //        demo_resize(e.window.data1, e.window.data2);
@@ -139,8 +139,8 @@ int main(void) {
         double time = player_get_time(player);
         rocket_row = time * ROW_RATE;
 
-        // Update rocket
 #ifdef DEBUG
+        // Update rocket
         if (sync_update(rocket, (int)rocket_row, &rocket_callbacks,
                         (void *)player)) {
             SDL_Log("Rocket disconnected\n");
