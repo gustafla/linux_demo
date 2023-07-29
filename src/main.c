@@ -4,7 +4,7 @@
 #include <sync.h>
 
 #define WIDTH 1920
-#define HEIGHT 1080
+#define HEIGHT 720
 #define BEATS_PER_MINUTE 120.0
 #define ROWS_PER_BEAT 8.
 #define ROW_RATE ((BEATS_PER_MINUTE / 60.) * ROWS_PER_BEAT)
