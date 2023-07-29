@@ -53,22 +53,14 @@ int main(void) {
 
     // Create a window
     // This is what the demo gets rendered to.
-    SDL_Window *window = SDL_CreateWindow(
-        "demo", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
-#ifndef DEBUG // Put window in fullscreen when building a non-debug build
-            | SDL_WINDOW_FULLSCREEN
-#endif
-    );
+    int w = WIDTH, h = HEIGHT;
+    SDL_Window *window =
+        SDL_CreateWindow("demo", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                         w, h, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (!window) {
         SDL_Log("SDL2 failed to initialize a window: %s\n", SDL_GetError());
         return 1;
     }
-
-#ifndef DEBUG
-    // Hide cursor when building a non-debug build
-    SDL_ShowCursor(SDL_DISABLE);
-#endif
 
     // Get an OpenGL context
     // This is needed to connect the OpenGL driver to the window we just created
@@ -106,6 +98,15 @@ int main(void) {
         return 1;
     }
 
+#ifndef DEBUG // Put window in fullscreen when building a non-debug build
+    SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+    SDL_ShowCursor(SDL_DISABLE);
+#endif
+
+    // Resize demo to fit the window we actually got
+    SDL_GL_GetDrawableSize(window, &w, &h);
+    demo_resize(demo, w, h);
+
     // Here starts the demo's main loop
     SDL_Event e;
     int running = 1;
@@ -130,7 +131,8 @@ int main(void) {
 #endif
             } else if (e.type == SDL_WINDOWEVENT) {
                 if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-                    demo_resize(demo, e.window.data1, e.window.data2);
+                    SDL_GL_GetDrawableSize(window, &w, &h);
+                    demo_resize(demo, w, h);
                 }
             }
         }

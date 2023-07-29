@@ -1,9 +1,12 @@
+#include "rand.h"
 #include "util.h"
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <SDL2/SDL.h>
 #include <stdlib.h>
 #include <sync.h>
+
+#define NOISE_SIZE 256
 
 #define GET_VALUE(track_name)                                                  \
     sync_get_val(sync_get_track(rocket, track_name), rocket_row)
@@ -41,6 +44,7 @@ typedef struct {
     GLuint vao;
     GLuint effect_program;
     GLuint post_program;
+    GLuint noise_texture;
     fbo_t *post_fb;
     fbo_t *output_fb;
 } demo_t;
@@ -140,10 +144,20 @@ demo_t *demo_init(int width, int height) {
     demo->post_fb = create_framebuffer(width, height);
     demo->output_fb = create_framebuffer(width, height);
 
+    glActiveTexture(GL_TEXTURE0);
+    glGenTextures(1, &demo->noise_texture);
+    glBindTexture(GL_TEXTURE_2D, demo->noise_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, NOISE_SIZE, NOISE_SIZE, 0, GL_RED,
+                 GL_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
     return demo;
 }
 
 void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
+    static char noise[NOISE_SIZE * NOISE_SIZE * 4];
+
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, demo->post_fb->framebuffer);
     glClear(GL_COLOR_BUFFER_BIT);
     glViewport(0, 0, demo->width, demo->height);
@@ -161,11 +175,21 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glViewport(0, 0, demo->width, demo->height);
 
     glUseProgram(demo->post_program);
+    glUniform1f(glGetUniformLocation(demo->post_program, "u_RocketRow"),
+                rocket_row);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, demo->post_fb->framebuffer_texture);
     glUniform1i(glGetUniformLocation(demo->post_program, "u_InputSampler"), 0);
-    glUniform1f(glGetUniformLocation(demo->post_program, "u_RocketRow"),
-                rocket_row);
+    glActiveTexture(GL_TEXTURE1);
+    for (GLsizei i = 0; i < NOISE_SIZE * NOISE_SIZE * 4; i++) {
+        noise[i] = rand_xoshiro();
+    }
+    glBindTexture(GL_TEXTURE_2D, demo->noise_texture);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, NOISE_SIZE, NOISE_SIZE, GL_RGBA,
+                    GL_UNSIGNED_BYTE, noise);
+    glUniform1i(glGetUniformLocation(demo->post_program, "u_NoiseSampler"), 1);
+    glUniform1i(glGetUniformLocation(demo->post_program, "u_NoiseSize"),
+                NOISE_SIZE);
 
     glBindVertexArray(demo->vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
