@@ -3,8 +3,8 @@ BUILDDIR = build
 EXECUTABLE = demo
 CC = gcc
 STRIP = strip --strip-all
-EXTRA_CFLAGS = -std=c99 -Wall -Wextra -Wpedantic
-LDLIBS = -lm -l:libSDL2.a
+EXTRA_CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -DGL_GLEXT_PROTOTYPES
+LDLIBS = -lm -l:libSDL2.a -lGL
 DEBUG ?= 1
 
 # Set debug and release build flags
