@@ -32,8 +32,11 @@ typedef struct {
 typedef struct {
     int width;
     int height;
-    int output_width;
-    int output_height;
+    double aspect_ratio;
+    int x0;
+    int y0;
+    int x1;
+    int y1;
     GLuint quad_buffer;
     GLuint vao;
     GLuint effect_program;
@@ -67,14 +70,34 @@ static fbo_t *create_framebuffer(GLsizei width, GLsizei height) {
     return fbo;
 }
 
+void demo_resize(demo_t *demo, int width, int height) {
+    if ((float)width / (float)height > demo->aspect_ratio) {
+        demo->y0 = 0;
+        demo->y1 = height;
+        double adjusted = height * demo->aspect_ratio;
+        int remainder = (width - adjusted) / 2;
+        demo->x0 = remainder;
+        demo->x1 = remainder + adjusted;
+    } else {
+        demo->x0 = 0;
+        demo->x1 = width;
+        double adjusted = width / demo->aspect_ratio;
+        int remainder = (height - adjusted) / 2;
+        demo->y0 = remainder;
+        demo->y1 = remainder + adjusted;
+    }
+}
+
 demo_t *demo_init(int width, int height) {
     demo_t *demo = calloc(1, sizeof(demo_t));
     if (!demo) {
         return NULL;
     }
 
-    demo->output_width = demo->width = width;
-    demo->output_height = demo->height = height;
+    demo->width = width;
+    demo->height = height;
+    demo->aspect_ratio = (double)width / (double)height;
+    demo_resize(demo, width, height);
 
     glGenBuffers(1, &demo->quad_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, demo->quad_buffer);
@@ -121,7 +144,7 @@ demo_t *demo_init(int width, int height) {
 }
 
 void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
-    glBindFramebuffer(GL_FRAMEBUFFER, demo->post_fb->framebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, demo->post_fb->framebuffer);
     glClear(GL_COLOR_BUFFER_BIT);
     glViewport(0, 0, demo->width, demo->height);
 
@@ -133,7 +156,7 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, demo->output_fb->framebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, demo->output_fb->framebuffer);
     glClear(GL_COLOR_BUFFER_BIT);
     glViewport(0, 0, demo->width, demo->height);
 
@@ -151,13 +174,8 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glBindFramebuffer(GL_READ_FRAMEBUFFER, demo->output_fb->framebuffer);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     // glClear(GL_COLOR_BUFFER_BIT);
-    glBlitFramebuffer(0, 0, demo->width, demo->height, 0, 0, demo->output_width,
-                      demo->output_height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-}
-
-void demo_resize(demo_t *demo, int width, int height) {
-    demo->output_width = width;
-    demo->output_height = height;
+    glBlitFramebuffer(0, 0, demo->width, demo->height, demo->x0, demo->y0,
+                      demo->x1, demo->y1, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
 
 void demo_deinit(demo_t *demo) {
