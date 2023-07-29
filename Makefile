@@ -10,6 +10,7 @@ DEBUG ?= 1
 # Set debug and release build flags
 ifeq ($(DEBUG),0)
 CFLAGS += -Os
+EXTRA_CFLAGS += -DSYNC_PLAYER
 LDLIBS += -l:librocket-player.a
 else
 CFLAGS += -Og -g
@@ -26,7 +27,7 @@ OBJS = $(patsubst %.c,%.o,$(SOURCES:$(SOURCEDIR)/%=$(BUILDDIR)/%))
 # Third party library build variables
 LIB_PREFIX = $(CURDIR)/$(BUILDDIR)/install
 EXTRA_CFLAGS += -I$(LIB_PREFIX)/include -L$(LIB_PREFIX)/lib
-LIBRARIES = $(LIB_PREFIX)/lib/libSDL2.a $(LIB_PREFIX)/lib/librocket.a
+LIBRARIES = $(LIB_PREFIX)/lib/libSDL2.a $(LIB_PREFIX)/lib/librocket.a $(LIB_PREFIX)/include/stb_vorbis.c
 
 
 # This rule is for linking the final executable
@@ -65,6 +66,12 @@ $(LIB_PREFIX)/lib/librocket.a: | lib/SDL/configure
 	@mkdir -p $(LIB_PREFIX)/lib $(LIB_PREFIX)/include
 	cp lib/rocket/lib/*.a $(LIB_PREFIX)/lib
 	cp lib/rocket/lib/*.h $(LIB_PREFIX)/include
+
+
+# This rule is for copying stb_vorbis.c to library include directory
+$(LIB_PREFIX)/include/stb_vorbis.c: lib/stb/stb_vorbis.c
+	@mkdir -p $(LIB_PREFIX)/include
+	cp $^ $@
 
 	
 .PHONY: clean
