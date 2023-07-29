@@ -6,22 +6,32 @@
 #define WIDTH 1920
 #define HEIGHT 1080
 #define BEATS_PER_MINUTE 120.0
-#define ROWS_PER_BEAT 16.0
+#define ROWS_PER_BEAT 8.
 
 typedef struct {
     music_player_t *player;
     double row_rate;
 } rocket_userdata_t;
 
-static void player_set_row(void *d, int row) {
+static void set_row(void *d, int row) {
     rocket_userdata_t *data = (rocket_userdata_t *)d;
     player_set_time(data->player, row / data->row_rate);
 }
 
+static void pause(void *d, int flag) {
+    rocket_userdata_t *data = (rocket_userdata_t *)d;
+    player_pause(data->player, flag);
+}
+
+static int is_playing(void *d) {
+    rocket_userdata_t *data = (rocket_userdata_t *)d;
+    return player_is_playing(data->player);
+}
+
 static struct sync_cb rocket_callbacks = {
-    (void (*)(void *, int))player_pause, // music_player.c
-    player_set_row,                      // main.c
-    (int (*)(void *))player_is_playing   // music_player.c
+    .pause = pause,
+    .set_row = set_row,
+    .is_playing = is_playing,
 };
 
 int main(int argc, char **argv) {
@@ -78,7 +88,7 @@ int main(int argc, char **argv) {
     }
 
     // Initialize rocket
-    struct sync_device *rocket = sync_create_device("sync");
+    struct sync_device *rocket = sync_create_device("data/sync");
     if (!rocket) {
         SDL_Log("Rocket initialization failed\n");
         return 1;
@@ -118,6 +128,12 @@ int main(int argc, char **argv) {
                     e.key.keysym.sym == SDLK_q) {
                     running = 0;
                 }
+                if (e.key.keysym.sym == SDLK_s) {
+#ifdef DEBUG
+                    sync_save_tracks(rocket);
+                    SDL_Log("Tracks saved.\n");
+#endif
+                }
             } // else if (e.type == SDL_WINDOWEVENT) {
             //    if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
             //        demo_resize(e.window.data1, e.window.data2);
@@ -133,7 +149,7 @@ int main(int argc, char **argv) {
         if (sync_update(rocket, (int)rocket_row, &rocket_callbacks,
                         (void *)&rocket_userdata)) {
             SDL_Log("Rocket disconnected\n");
-            return 1;
+            running = 0;
         }
 
         // Render. This does draw calls.
@@ -142,6 +158,10 @@ int main(int argc, char **argv) {
         // Swap the render result to window, so that it becomes visible
         SDL_GL_SwapWindow(window);
     }
+
+#ifdef DEBUG
+    sync_save_tracks(rocket);
+#endif
 
     demo_deinit(demo);
     music_player_deinit(player);
