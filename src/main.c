@@ -10,24 +10,19 @@
 #define ROW_RATE ((BEATS_PER_MINUTE / 60.) * ROWS_PER_BEAT)
 
 #ifdef DEBUG
-typedef struct {
-    music_player_t *player;
-    double row_rate;
-} rocket_userdata_t;
-
 static void set_row(void *d, int row) {
-    rocket_userdata_t *data = (rocket_userdata_t *)d;
-    player_set_time(data->player, row / data->row_rate);
+    music_player_t *player = (music_player_t *)d;
+    player_set_time(player, row / ROW_RATE);
 }
 
 static void pause(void *d, int flag) {
-    rocket_userdata_t *data = (rocket_userdata_t *)d;
-    player_pause(data->player, flag);
+    music_player_t *player = (music_player_t *)d;
+    player_pause(player, flag);
 }
 
 static int is_playing(void *d) {
-    rocket_userdata_t *data = (rocket_userdata_t *)d;
-    return player_is_playing(data->player);
+    music_player_t *player = (music_player_t *)d;
+    return player_is_playing(player);
 }
 
 static struct sync_cb rocket_callbacks = {
@@ -37,7 +32,7 @@ static struct sync_cb rocket_callbacks = {
 };
 #endif
 
-int main(int argc, char **argv) {
+int main(void) {
     // Initialize SDL
     // This is required to get OpenGL and audio to work
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {
@@ -103,10 +98,6 @@ int main(int argc, char **argv) {
         SDL_Log("Waiting for Rocket editor...\n");
         SDL_Delay(200);
     }
-
-    // Set rocket callback data
-    rocket_userdata_t rocket_userdata = {.player = player,
-                                         .row_rate = ROW_RATE};
 #endif
 
     // Initialize demo rendering
@@ -151,7 +142,7 @@ int main(int argc, char **argv) {
         // Update rocket
 #ifdef DEBUG
         if (sync_update(rocket, (int)rocket_row, &rocket_callbacks,
-                        (void *)&rocket_userdata)) {
+                        (void *)player)) {
             SDL_Log("Rocket disconnected\n");
             running = 0;
         }
