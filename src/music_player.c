@@ -41,8 +41,9 @@ static stb_vorbis *open_vorbis(const char *filename) {
 
 music_player_t *music_player_init(const char *filename) {
     music_player_t *player = calloc(1, sizeof(music_player_t));
-    if (!player)
+    if (!player) {
         return NULL;
+    }
 
     stb_vorbis *vorbis = open_vorbis(filename);
     if (!vorbis) {

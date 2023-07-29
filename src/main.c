@@ -1,9 +1,28 @@
 #include "demo.h"
 #include "music_player.h"
 #include <SDL2/SDL.h>
+#include <sync.h>
 
 #define WIDTH 1920
 #define HEIGHT 1080
+#define BEATS_PER_MINUTE 120.0
+#define ROWS_PER_BEAT 16.0
+
+typedef struct {
+    music_player_t *player;
+    double row_rate;
+} rocket_userdata_t;
+
+static void player_set_row(void *d, int row) {
+    rocket_userdata_t *data = (rocket_userdata_t *)d;
+    player_set_time(data->player, row / data->row_rate);
+}
+
+static struct sync_cb rocket_callbacks = {
+    (void (*)(void *, int))player_pause, // music_player.c
+    player_set_row,                      // main.c
+    (int (*)(void *))player_is_playing   // music_player.c
+};
 
 int main(int argc, char **argv) {
     // Initialize SDL
@@ -54,14 +73,41 @@ int main(int argc, char **argv) {
 
     // Initialize music player
     music_player_t *player = music_player_init("data/music.ogg");
+    if (!player) {
+        return 1;
+    }
+
+    // Initialize rocket
+    struct sync_device *rocket = sync_create_device("sync");
+    if (!rocket) {
+        SDL_Log("Rocket initialization failed\n");
+        return 1;
+    }
+
+#ifdef DEBUG
+    // Connect rocket
+    while (sync_tcp_connect(rocket, "localhost", SYNC_DEFAULT_PORT)) {
+        SDL_Log("Waiting for Rocket editor...\n");
+        SDL_Delay(200);
+    }
+#endif
+
+    // Set rocket callback data
+    rocket_userdata_t rocket_userdata = {
+        .player = player, .row_rate = (BEATS_PER_MINUTE / 60.) * ROWS_PER_BEAT};
 
     // Initialize demo rendering
     demo_t *demo = demo_init();
+    if (!demo) {
+        return 1;
+    }
 
     // Here starts the demo's main loop
     SDL_Event e;
     int running = 1;
+    double rocket_row = 0;
 
+    player_pause(player, 0);
     while (running) {
         // Get SDL events, such as keyboard presses or quit-signals
         while (SDL_PollEvent(&e)) {
@@ -79,8 +125,19 @@ int main(int argc, char **argv) {
             //}
         }
 
+        // Get time from music player
+        double time = player_get_time(player);
+        rocket_row = time * rocket_userdata.row_rate;
+
+        // Update rocket
+        if (sync_update(rocket, (int)rocket_row, &rocket_callbacks,
+                        (void *)&rocket_userdata)) {
+            SDL_Log("Rocket disconnected\n");
+            return 1;
+        }
+
         // Render. This does draw calls.
-        demo_render(demo);
+        demo_render(demo, rocket, rocket_row);
 
         // Swap the render result to window, so that it becomes visible
         SDL_GL_SwapWindow(window);
