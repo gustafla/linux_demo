@@ -2,3 +2,11 @@
 	path = lib/SDL
 	url = https://github.com/libsdl-org/SDL.git
 	branch = release-2.28.x
+[submodule "lib/stb"]
+	path = lib/stb
+	url = https://github.com/nothings/stb
+	branch = master
+[submodule "lib/rocket"]
+	path = lib/rocket
+	url = https://github.com/rocket/rocket
+	branch = main
