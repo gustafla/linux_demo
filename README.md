@@ -19,13 +19,13 @@ GNU `make` for simplicity.
 ### Ubuntu and Debian
 
 ```
-sudo apt install build-essential meson
+sudo apt install build-essential
 ```
 
 ### Arch Linux
 
 ```
-sudo pacman -S base-devel meson ninja
+sudo pacman -S base-devel
 ```
 
 Then we need to fetch some third-party libraries:
@@ -35,7 +35,13 @@ git submodule update --init
 
 ## Building
 
-TODO
+Just run
+
+```
+make -j $(nproc)
+```
+
+This will use all CPU cores you have available.
 
 ## Overview of libraries and code
 
