@@ -1,5 +1,5 @@
 build/
 release/
-data/
+data/*.track
 compile_commands.json
 .cache/
