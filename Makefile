@@ -3,7 +3,7 @@ BUILDDIR = build
 EXECUTABLE = demo
 CC = gcc
 STRIP = strip --strip-all
-EXTRA_CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -DGL_GLEXT_PROTOTYPES
+EXTRA_CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -DGL_GLEXT_PROTOTYPES -I$(BUILDDIR)/include -L$(BUILDDIR)/lib
 LDLIBS = -lm -l:libSDL2.a -lGL
 DEBUG ?= 1
 
@@ -21,13 +21,9 @@ endif
 # Variables for output and intermediate artifacts
 SOURCEDIR = src
 TARGET = $(BUILDDIR)/$(EXECUTABLE)
-SOURCES = $(wildcard $(SOURCEDIR)/*.c) $(SOURCEDIR)/data.c
+SOURCES = $(wildcard $(SOURCEDIR)/*.c)
 OBJS = $(patsubst %.c,%.o,$(SOURCES:$(SOURCEDIR)/%=$(BUILDDIR)/%))
-
-# Third party library build variables
-LIB_PREFIX = $(CURDIR)/$(BUILDDIR)/install
-EXTRA_CFLAGS += -I$(LIB_PREFIX)/include -L$(LIB_PREFIX)/lib
-LIBRARIES = $(LIB_PREFIX)/lib/libSDL2.a $(LIB_PREFIX)/lib/librocket.a $(LIB_PREFIX)/include/stb_vorbis.c
+LIBRARIES = $(BUILDDIR)/lib/libSDL2.a $(BUILDDIR)/lib/librocket.a $(BUILDDIR)/include/stb_vorbis.c $(BUILDDIR)/include/data.c
 
 
 # This rule is for linking the final executable
@@ -45,11 +41,6 @@ $(BUILDDIR)/%.o: $(SOURCEDIR)/%.c $(LIBRARIES)
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c -o $@ $<
 
 
-# This rule is for generating src/data.c and src/data.h
-$(SOURCEDIR)/data.c: $(wildcard data/*)
-	scripts/mkfs.sh
-
-
 # This rule is a check for having fetched git submodules
 lib/SDL/configure:
 	@echo Please run git submodule update --init first!
@@ -58,22 +49,28 @@ lib/SDL/configure:
 
 
 # This rule is for building SDL2
-$(LIB_PREFIX)/lib/libSDL2.a: | lib/SDL/configure
-	CC="$(CC)" scripts/build_sdl2.sh $(LIB_PREFIX)
+$(BUILDDIR)/lib/libSDL2.a: | lib/SDL/configure
+	CC="$(CC)" scripts/build_sdl2.sh $(BUILDDIR)
 
 
 # This rule is for building rocket libraries
-$(LIB_PREFIX)/lib/librocket.a: | lib/SDL/configure
+$(BUILDDIR)/lib/librocket.a: | lib/SDL/configure
 	$(MAKE) -C lib/rocket lib/librocket.a lib/librocket-player.a CFLAGS="-Os" CC="$(CC)"
-	@mkdir -p $(LIB_PREFIX)/lib $(LIB_PREFIX)/include
-	cp lib/rocket/lib/*.a $(LIB_PREFIX)/lib
-	cp lib/rocket/lib/*.h $(LIB_PREFIX)/include
+	@mkdir -p $(BUILDDIR)/lib $(BUILDDIR)/include
+	cp lib/rocket/lib/*.a $(BUILDDIR)/lib
+	cp lib/rocket/lib/*.h $(BUILDDIR)/include
 
 
 # This rule is for copying stb_vorbis.c to library include directory
-$(LIB_PREFIX)/include/stb_vorbis.c: lib/stb/stb_vorbis.c
-	@mkdir -p $(LIB_PREFIX)/include
+$(BUILDDIR)/include/stb_vorbis.c: lib/stb/stb_vorbis.c
+	@mkdir -p $(BUILDDIR)/include
 	cp $^ $@
+
+
+# This rule is for generating build/include/data.c
+$(BUILDDIR)/include/data.c: $(wildcard data/*)
+	@mkdir -p $(BUILDDIR)/include
+	scripts/mkfs.sh $@
 
 	
 .PHONY: clean

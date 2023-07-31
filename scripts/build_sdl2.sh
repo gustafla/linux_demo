@@ -1,8 +1,9 @@
 #!/bin/sh
 set -e
+PREFIX="$(realpath $1)"
 cd lib/SDL
 ./configure \
---prefix="$1" \
+--prefix="$PREFIX" \
 --enable-shared=no \
 --enable-static=yes \
 --enable-video=yes \

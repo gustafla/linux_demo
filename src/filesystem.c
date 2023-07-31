@@ -1,4 +1,4 @@
-#include "data.h"
+#include "data.c"
 #include <string.h>
 
 const unsigned char *filesystem_open(const char *filename, unsigned int *len) {
