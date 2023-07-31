@@ -1,5 +1,6 @@
 build/
 release/
 data/*.track
+data/music.ogg
 compile_commands.json
 .cache/

@@ -54,15 +54,12 @@ lib/SDL/configure:
 
 # This rule is for building SDL2
 $(LIB_PREFIX)/lib/libSDL2.a: | lib/SDL/configure
-	cd lib/SDL && \
-	./configure --prefix=$(LIB_PREFIX) && \
-	$(MAKE) CFLAGS="$(CFLAGS)" CC=$(CC) && \
-	$(MAKE) install
+	CC="$(CC)" ./build_sdl2.sh $(LIB_PREFIX)
 
 
 # This rule is for building rocket libraries
 $(LIB_PREFIX)/lib/librocket.a: | lib/SDL/configure
-	$(MAKE) -C lib/rocket lib/librocket.a lib/librocket-player.a CFLAGS="$(CFLAGS)" CC=$(CC)
+	$(MAKE) -C lib/rocket lib/librocket.a lib/librocket-player.a CFLAGS="-Os" CC="$(CC)"
 	@mkdir -p $(LIB_PREFIX)/lib $(LIB_PREFIX)/include
 	cp lib/rocket/lib/*.a $(LIB_PREFIX)/lib
 	cp lib/rocket/lib/*.h $(LIB_PREFIX)/include
