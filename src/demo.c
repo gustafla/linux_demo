@@ -179,6 +179,8 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glUseProgram(demo->effect_program);
     glUniform1f(glGetUniformLocation(demo->effect_program, "u_RocketRow"),
                 rocket_row);
+    glUniform1f(glGetUniformLocation(demo->effect_program, "u_TestValue"),
+                GET_VALUE("test"));
 
     glBindVertexArray(demo->vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);

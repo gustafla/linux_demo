@@ -1,5 +1,6 @@
 #include "demo.h"
 #include "music_player.h"
+#include "rocket_io.h"
 #include <SDL2/SDL.h>
 #include <sync.h>
 
@@ -90,6 +91,9 @@ int main(void) {
         SDL_Log("Waiting for Rocket editor...\n");
         SDL_Delay(200);
     }
+#else
+    // Set rocket io callback
+    sync_set_io_cb(rocket, &rocket_iocb);
 #endif
 
     // Initialize demo rendering
