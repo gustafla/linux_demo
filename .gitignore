@@ -2,5 +2,7 @@ build/
 release/
 data/*.track
 data/music.ogg
+src/data.c
+src/data.h
 compile_commands.json
 .cache/

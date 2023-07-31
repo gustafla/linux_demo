@@ -23,13 +23,13 @@ GNU `make` for simplicity.
 ### Ubuntu and Debian
 
 ```
-sudo apt install build-essential
+sudo apt install build-essential xxd
 ```
 
 ### Arch Linux
 
 ```
-sudo pacman -S base-devel
+sudo pacman -S base-devel vim
 ```
 
 Then we need to fetch some third-party libraries:

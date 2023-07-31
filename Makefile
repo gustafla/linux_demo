@@ -21,7 +21,7 @@ endif
 # Variables for output and intermediate artifacts
 SOURCEDIR = src
 TARGET = $(BUILDDIR)/$(EXECUTABLE)
-SOURCES = $(wildcard $(SOURCEDIR)/*.c)
+SOURCES = $(wildcard $(SOURCEDIR)/*.c) $(SOURCEDIR)/data.c
 OBJS = $(patsubst %.c,%.o,$(SOURCES:$(SOURCEDIR)/%=$(BUILDDIR)/%))
 
 # Third party library build variables
@@ -43,6 +43,11 @@ endif
 $(BUILDDIR)/%.o: $(SOURCEDIR)/%.c $(LIBRARIES)
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c -o $@ $<
+
+
+# This rule is for generating src/data.c and src/data.h
+$(SOURCEDIR)/data.c:
+	./mkfs.sh
 
 
 # This rule is a check for having fetched git submodules
