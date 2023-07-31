@@ -9,6 +9,7 @@ DEBUG ?= 1
 
 # Set debug and release build flags
 ifeq ($(DEBUG),0)
+BUILDDIR = release
 CFLAGS += -Os
 EXTRA_CFLAGS += -DSYNC_PLAYER
 LDLIBS += -l:librocket-player.a
