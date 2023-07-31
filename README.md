@@ -2,11 +2,12 @@
 
 Welcome. This is a guide to get started creating native OpenGL demos on Linux.
 The repository is structured so that `data/` contains binary files
-(assets such as music), `src/` contains source code and `lib/` contains
-third-party libraries (git submodules).
+(assets such as music), `src/` contains source code, `scripts/` contains scripts
+that are required for building the demo and `lib/` contains third-party
+libraries (git submodules).
 
-The result is an executable along with a `data/` -directory, which shows
-some GLSL shaders with music, sync and post processing.
+The result is an executable which shows some GLSL shaders with music,
+sync and post processing, and doesn't depend on any other files.
 We've chosen to compile and statically link all libraries except for libc,
 so that the released production depends on least possible stuff.
 
