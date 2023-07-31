@@ -1,5 +1,6 @@
 # Configuration variables
 BUILDDIR = build
+RELEASEDIR = release
 EXECUTABLE = demo
 CC = gcc
 STRIP = strip --strip-all
@@ -9,11 +10,12 @@ DEBUG ?= 1
 
 # Set debug and release build flags
 ifeq ($(DEBUG),0)
-BUILDDIR = release
+OBJDIR=$(RELEASEDIR)
 CFLAGS += -Os
 EXTRA_CFLAGS += -DSYNC_PLAYER
 LDLIBS += -l:librocket-player.a
 else
+OBJDIR=$(BUILDDIR)
 CFLAGS += -Og -g
 EXTRA_CFLAGS += -DDEBUG
 LDLIBS += -l:librocket.a
@@ -21,9 +23,9 @@ endif
 
 # Variables for output and intermediate artifacts
 SOURCEDIR = src
-TARGET = $(BUILDDIR)/$(EXECUTABLE)
+TARGET = $(OBJDIR)/$(EXECUTABLE)
 SOURCES = $(wildcard $(SOURCEDIR)/*.c)
-OBJS = $(patsubst %.c,%.o,$(SOURCES:$(SOURCEDIR)/%=$(BUILDDIR)/%))
+OBJS = $(patsubst %.c,%.o,$(SOURCES:$(SOURCEDIR)/%=$(OBJDIR)/%))
 LIBRARIES = $(BUILDDIR)/lib/libSDL2.a $(BUILDDIR)/lib/librocket.a $(BUILDDIR)/include/stb_vorbis.c $(BUILDDIR)/include/data.c
 
 
@@ -37,7 +39,7 @@ endif
 
 
 # This rule is for compiling our C source files
-$(BUILDDIR)/%.o: $(SOURCEDIR)/%.c $(LIBRARIES)
+$(OBJDIR)/%.o: $(SOURCEDIR)/%.c $(LIBRARIES)
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c -o $@ $<
 
@@ -78,6 +80,6 @@ $(BUILDDIR)/include/data.c: $(wildcard data/*)
 
 
 clean:
-	rm -rf $(BUILDDIR)
+	rm -rf $(BUILDDIR) $(RELEASEDIR)
 	$(MAKE) -C lib/SDL $(MAKECMDGOALS)
 	$(MAKE) -C lib/rocket $(MAKECMDGOALS)

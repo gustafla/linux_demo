@@ -48,6 +48,18 @@ make -j $(nproc)
 
 This will use all CPU cores you have available.
 
+## Releasing
+
+Your demo is getting ready and you want to try to build a release build?
+Very simple. Just run
+
+```
+make -j $(nproc) DEBUG=0
+```
+
+This builds a `release/demo` which can be copied anywhere and won't need the
+rocket editor to run.
+
 ## Overview of libraries and code
 
 We will use the industry-standard SDL2 library as a base for audio output,
