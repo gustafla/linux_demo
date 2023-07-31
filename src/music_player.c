@@ -1,3 +1,4 @@
+#include "filesystem.h"
 #include "stb_vorbis.c"
 #include <SDL2/SDL.h>
 
@@ -28,12 +29,19 @@ static void callback(void *userdata, Uint8 *stream, int len) {
 }
 
 static stb_vorbis *open_vorbis(const char *filename) {
+    unsigned int len;
+    const unsigned char *data = filesystem_open(filename, &len);
+    if (!data) {
+        SDL_Log("File %s not found\n", filename);
+        return NULL;
+    }
+
     int error = VORBIS__no_error;
-    stb_vorbis *vorbis = stb_vorbis_open_filename(filename, &error, NULL);
+    stb_vorbis *vorbis = stb_vorbis_open_memory(data, len, &error, NULL);
 
     if (error != VORBIS__no_error) {
         vorbis = NULL;
-        SDL_Log("Failed to open vorbis file %s\n", filename);
+        SDL_Log("Failed to parse vorbis file %s\n", filename);
     }
 
     return vorbis;

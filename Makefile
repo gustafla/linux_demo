@@ -46,7 +46,7 @@ $(BUILDDIR)/%.o: $(SOURCEDIR)/%.c $(LIBRARIES)
 
 
 # This rule is for generating src/data.c and src/data.h
-$(SOURCEDIR)/data.c:
+$(SOURCEDIR)/data.c: $(wildcard data/*)
 	./mkfs.sh
 
 
