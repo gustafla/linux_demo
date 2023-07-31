@@ -67,7 +67,7 @@ static fbo_t *create_framebuffer(GLsizei width, GLsizei height) {
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
                            fbo->framebuffer_texture, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        fprintf(stderr, "FBO not complete\n");
+        SDL_Log("FBO not complete\n");
         return NULL;
     }
 

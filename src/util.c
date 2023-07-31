@@ -1,3 +1,5 @@
+#include "SDL2/SDL_log.h"
+#include "filesystem.h"
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <stddef.h>
@@ -5,8 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-size_t read_file(const char *file_path, char **dst) {
-    FILE *file = fopen(file_path, "rb");
+#ifdef DEBUG
+static size_t read_file(const char *filename, char **dst) {
+    FILE *file = fopen(filename, "rb");
     if (!file) {
         goto cleanup;
     }
@@ -34,9 +37,22 @@ cleanup:
         free(*dst);
         *dst = NULL;
     }
-    fprintf(stderr, "Failed to read file %s\n", file_path);
+    SDL_Log("Failed to read file %s\n", filename);
     return 0;
 }
+#else
+static size_t read_file(const char *filename, char **dst) {
+    unsigned int len = 0;
+    const unsigned char *data = filesystem_open(filename, &len);
+    if (!data) {
+        SDL_Log("Cannot find file %s\n", filename);
+        return 0;
+    }
+
+    *dst = (char *)data;
+    return len;
+}
+#endif
 
 static GLenum type_to_enum(const char *shader_type) {
     if (strcmp("vert", shader_type) == 0) {
@@ -46,7 +62,7 @@ static GLenum type_to_enum(const char *shader_type) {
     } else if (strcmp("frag", shader_type) == 0) {
         return GL_FRAGMENT_SHADER;
     }
-    fprintf(stderr, "Unrecognized shader type: %s\n", shader_type);
+    SDL_Log("Unrecognized shader type: %s\n", shader_type);
     return GL_INVALID_ENUM;
 }
 
@@ -64,7 +80,7 @@ GLuint compile_shader(const char *shader_src, const char *shader_type) {
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_len);
         GLchar *log = malloc(sizeof(GLchar) * log_len);
         glGetShaderInfoLog(shader, log_len, NULL, log);
-        fprintf(stderr, "Shader compilation failed:\n%s\n", log);
+        SDL_Log("Shader compilation failed:\n%s\n", log);
         free(log);
         return 0;
     }
@@ -88,10 +104,12 @@ GLuint compile_shader_file(const char *filename) {
     } while (ret);
 
     GLuint shader = compile_shader(shader_src, shader_type);
+#ifdef DEBUG
     free(shader_src);
+#endif
 
     if (shader == 0) {
-        fprintf(stderr, "File: %s\n", filename);
+        SDL_Log("File: %s\n", filename);
     }
 
     return shader;
@@ -113,7 +131,7 @@ GLuint link_program(size_t count, GLuint *shaders) {
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_len);
         GLchar *log = malloc(sizeof(GLchar) * log_len);
         glGetProgramInfoLog(program, log_len, NULL, log);
-        fprintf(stderr, "Program linking failed.\n%s\n", log);
+        SDL_Log("Program linking failed.\n%s\n", log);
         free(log);
         return 0;
     }
