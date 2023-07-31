@@ -74,6 +74,34 @@ static fbo_t *create_framebuffer(GLsizei width, GLsizei height) {
     return fbo;
 }
 
+static void replace_program(GLuint *old, GLuint new) {
+    if (new) {
+        if (*old) {
+            glDeleteProgram(*old);
+        }
+        *old = new;
+    }
+#ifndef DEBUG
+    else {
+        abort();
+    }
+#endif
+}
+
+void demo_reload(demo_t *demo) {
+    GLuint vertex_shader = compile_shader(vertex_shader_src, "vert");
+    GLuint fragment_shader = compile_shader_file("data/shader.frag");
+
+    replace_program(
+        &demo->effect_program,
+        link_program(2, (GLuint[]){vertex_shader, fragment_shader}));
+
+    GLuint post_shader = compile_shader_file("data/post.frag");
+
+    replace_program(&demo->post_program,
+                    link_program(2, (GLuint[]){vertex_shader, post_shader}));
+}
+
 void demo_resize(demo_t *demo, int width, int height) {
     if ((float)width / (float)height > demo->aspect_ratio) {
         demo->y0 = 0;
@@ -120,26 +148,7 @@ demo_t *demo_init(int width, int height) {
     glEnableVertexAttribArray(1);
     glBindVertexArray(0);
 
-    GLuint vertex_shader = compile_shader(vertex_shader_src, "vert");
-    if (!vertex_shader) {
-        return NULL;
-    }
-
-    GLuint fragment_shader = compile_shader_file("data/shader.frag");
-    if (!fragment_shader) {
-        return NULL;
-    }
-
-    demo->effect_program =
-        link_program(2, (GLuint[]){vertex_shader, fragment_shader});
-
-    GLuint post_shader = compile_shader_file("data/post.frag");
-    if (!post_shader) {
-        return NULL;
-    }
-
-    demo->post_program =
-        link_program(2, (GLuint[]){vertex_shader, post_shader});
+    demo_reload(demo);
 
     demo->post_fb = create_framebuffer(width, height);
     demo->output_fb = create_framebuffer(width, height);
@@ -157,6 +166,11 @@ demo_t *demo_init(int width, int height) {
 
 void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     static char noise[NOISE_SIZE * NOISE_SIZE * 4];
+
+    // Early return if shaders are currently unusable
+    if (!demo->effect_program || !demo->post_program) {
+        return;
+    }
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, demo->post_fb->framebuffer);
     glClear(GL_COLOR_BUFFER_BIT);

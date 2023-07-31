@@ -128,6 +128,10 @@ int main(void) {
                     sync_save_tracks(rocket);
                     SDL_Log("Tracks saved.\n");
                 }
+                if (e.key.keysym.sym == SDLK_r) {
+                    demo_reload(demo);
+                    SDL_Log("Shaders reloaded.\n");
+                }
 #endif
             } else if (e.type == SDL_WINDOWEVENT) {
                 if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
