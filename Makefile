@@ -47,7 +47,7 @@ $(BUILDDIR)/%.o: $(SOURCEDIR)/%.c $(LIBRARIES)
 
 # This rule is for generating src/data.c and src/data.h
 $(SOURCEDIR)/data.c: $(wildcard data/*)
-	./mkfs.sh
+	scripts/mkfs.sh
 
 
 # This rule is a check for having fetched git submodules
@@ -59,7 +59,7 @@ lib/SDL/configure:
 
 # This rule is for building SDL2
 $(LIB_PREFIX)/lib/libSDL2.a: | lib/SDL/configure
-	CC="$(CC)" ./build_sdl2.sh $(LIB_PREFIX)
+	CC="$(CC)" scripts/build_sdl2.sh $(LIB_PREFIX)
 
 
 # This rule is for building rocket libraries
