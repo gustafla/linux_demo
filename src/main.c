@@ -156,6 +156,11 @@ int main(void) {
             SDL_Log("Rocket disconnected\n");
             running = 0;
         }
+#else
+        // Quit the demo when music ends
+        if (player_at_end(player)) {
+            running = 0;
+        }
 #endif
 
         // Render. This does draw calls.
