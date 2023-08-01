@@ -118,8 +118,7 @@ shader_t compile_shader_file(const char *filename) {
     return shader;
 }
 
-program_t link_program(shader_t *shaders, size_t count,
-                       const char *uniform_filter) {
+program_t link_program(shader_t *shaders, size_t count) {
     program_t ret = (program_t){0};
     ret.handle = glCreateProgram();
 
@@ -142,30 +141,16 @@ program_t link_program(shader_t *shaders, size_t count,
     }
 
     // Join all uniforms. Duplicates are allowed.
-    size_t worst_case_size = 0;
     for (size_t i = 0; i < count; i++) {
-        worst_case_size += shaders[i].uniform_count;
+        ret.uniform_count += shaders[i].uniform_count;
     }
-    ret.uniforms = malloc(worst_case_size * sizeof(uniform_t));
-
-    // Inefficient, but seldom called
+    ret.uniforms = malloc(ret.uniform_count * sizeof(uniform_t));
+    size_t offset = 0;
     for (size_t i = 0; i < count; i++) {
         shader_t *s = shaders + i;
-
-        for (size_t j = 0; j < s->uniform_count; j++) {
-            uniform_t *ufm = s->uniforms + j;
-
-            // Skip filtered
-            for (const char *k = uniform_filter; *k; k = strchr(k, 0) + 1) {
-                if (strcmp(ufm->name, k) == 0) {
-                    goto next;
-                }
-            }
-
-            ret.uniforms[ret.uniform_count] = *ufm;
-            ret.uniform_count++;
-        next:;
-        }
+        memcpy(ret.uniforms + offset, s->uniforms,
+               s->uniform_count * sizeof(uniform_t));
+        offset += s->uniform_count;
     }
 
     print_uniforms(ret.uniforms, ret.uniform_count);
