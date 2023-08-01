@@ -68,7 +68,7 @@ make -j $(nproc) DEBUG=0
 This builds a `release/demo` which can be copied anywhere and won't need the
 rocket editor to run.
 
-:warning: *Please note that your system glibc version will prevent running the demo on older distro releases*
+:warning: **Please note that your system glibc version will prevent running the demo on older distro releases**
 For example: if you build a release build on an Arch Linux which has `glibc 2.37`,
 the demo cannot run on an Ubuntu 22.04 because it ships with `glibc 2.35`!
 
