@@ -48,9 +48,18 @@ make -j $(nproc)
 
 This will use all CPU cores you have available.
 
+## Default workflow
+
+0. Put your `music.ogg` file into `data` directory.
+1. Open your rocket editor. I prefer the default Qt-based rocket editor.
+2. Start `./build/demo`
+3. Open `data/shader.frag` in your editor.
+4. Hack on shaders! Uniforms you add will automatically show up in rocket.
+5. Reload shaders and uniforms by pressing R. No `make` or restart needed.
+
 ## Releasing
 
-Your demo is getting ready and you want to try to build a release build?
+Your demo is getting ready and you want to build a release build?
 Very simple. Just run
 
 ```
