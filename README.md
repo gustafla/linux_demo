@@ -1,8 +1,9 @@
 # Simple Linux demo in C
 
-Welcome. This is a guide to get started creating native OpenGL demos on Linux.
-The repository is structured so that [`data/`](data/) contains binary files
-(assets such as music), [`src/`](src/) contains source code, [`scripts/`](scripts/) contains scripts
+Welcome. This is a C99 codebase which will let you get started with creating
+native OpenGL demos on Linux. The repository is structured so that
+[`data/`](data/) contains binary files (assets such as music) as well as shaders,
+[`src/`](src/) contains source code, [`scripts/`](scripts/) contains scripts
 that are required for building the demo and [`lib/`](lib/) contains third-party
 libraries (git submodules).
 
@@ -18,6 +19,7 @@ For example `/home/user/My Projects/linux_demo` won't work. This is due to
 fundamental limitations in SDL2's build process.
 
 First we need to fetch some third-party libraries:
+
 ```
 git submodule update --init
 ```
@@ -56,6 +58,14 @@ This will use all CPU cores you have available.
 3. Open `data/shader.frag` in your editor.
 4. Hack on shaders! Uniforms prefixed with `r_` will automatically show up in rocket.
 5. Reload shaders and uniforms by pressing R. No `make` or restart needed.
+
+### What if my music track is not in .ogg vorbis format?
+
+It can be encoded with the following command:
+
+```
+ffmpeg -i YOUR_MUSIC_FILE -c:a libvorbis data/music.ogg
+```
 
 ## Releasing
 
