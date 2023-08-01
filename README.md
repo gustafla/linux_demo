@@ -1,9 +1,9 @@
 # Simple Linux demo in C
 
 Welcome. This is a guide to get started creating native OpenGL demos on Linux.
-The repository is structured so that `data/` contains binary files
-(assets such as music), `src/` contains source code, `scripts/` contains scripts
-that are required for building the demo and `lib/` contains third-party
+The repository is structured so that [`data/`](data/) contains binary files
+(assets such as music), [`src/`](src/) contains source code, [`scripts/`](scripts/) contains scripts
+that are required for building the demo and [`lib/`](lib/) contains third-party
 libraries (git submodules).
 
 The result is an executable which shows some GLSL shaders with music,
@@ -81,7 +81,8 @@ Example run for `podman`, as your normal user:
 ```
 podman run -it --rm -v.:/build ubuntu:22.04
 apt update && apt install build-essential xxd libsdl2-dev libpipewire-0.3-dev
-make -C build -j $(nproc) DEBUG=0 clean release/demo
+cd /build
+make -j $(nproc) DEBUG=0 clean release/demo
 ```
 
 ## Overview of libraries and code
@@ -99,15 +100,15 @@ And finally, rocket is a sync tracker along with a library to edit
 your demo's synchronization with music without having to change code and
 recompile.
 
-The `src/` directory contains about 1000 lines of commented (WIP) C code,
+The [`src/`](src/) directory contains about 1000 lines of commented (WIP) C code,
 which you can read starting from any file.
 
 Here is is a list of the source files in (subjectively) decreasing order of importance:
-- `main.c`: Initializes window, OpenGL context, audio, music player, rocket. Contains demo's main loop.
-- `demo.c`: Most rendering and OpenGL calls happen in this file.
-- `shader.c`: Utilities for loading and compiling shaders.
-- `uniforms.c`: Contains a limited and simple (and broken) GLSL parser to extract uniform names from shaders.
-- `music_player.c`: Music player with OGG Vorbis streaming, seeking and timing support for sync editor.
-- `filesystem.c`: Includes `data.c` which `scripts/mkfs.sh` generates at build time. Has functions for reading embedded files.
-- `rocket_io.c`: This file hosts rocket `sync_io_cb` (I/O callback) code for rocket to load tracks from embedded files.
-- `rand.c`: A xoshiro PRNG implementation, mostly used for post processing noise.
+- [`main.c`](src/main.c): Initializes window, OpenGL context, audio, music player, rocket. Contains demo's main loop.
+- [`demo.c`](src/demo.c): Most rendering and OpenGL calls happen in this file.
+- [`shader.c`](src/shader.c): Utilities for loading and compiling shaders.
+- [`uniforms.c`](src/uniforms.c): Contains a limited and simple (and broken) GLSL parser to extract uniform names from shaders.
+- [`music_player.c`](src/music_player.c): Music player with OGG Vorbis streaming, seeking and timing support for sync editor.
+- [`filesystem.c`](src/filesystem.c): Includes `data.c` which `scripts/mkfs.sh` generates at build time. Has functions for reading embedded files.
+- [`rocket_io.c`](src/rocket_io.c): This file hosts rocket `sync_io_cb` (I/O callback) code for rocket to load tracks from embedded files.
+- [`rand.c`](src/rand.c): A xoshiro PRNG implementation, mostly used for post processing noise.
