@@ -54,7 +54,7 @@ This will use all CPU cores you have available.
 1. Open your rocket editor. I prefer the default Qt-based rocket editor.
 2. Start `./build/demo`
 3. Open `data/shader.frag` in your editor.
-4. Hack on shaders! Uniforms you add will automatically show up in rocket.
+4. Hack on shaders! Uniforms prefixed with `r_` will automatically show up in rocket.
 5. Reload shaders and uniforms by pressing R. No `make` or restart needed.
 
 ## Releasing
