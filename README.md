@@ -93,6 +93,8 @@ podman run -it --rm -v.:/build ubuntu:22.04
 apt update && apt install build-essential xxd libsdl2-dev libpipewire-0.3-dev
 cd /build
 make -j $(nproc) DEBUG=0 clean release/demo
+mv release/demo .
+make clean
 ```
 
 Instructions for installing podman on Arch Linux can be found on the [Arch Wiki](https://wiki.archlinux.org/title/Podman).
