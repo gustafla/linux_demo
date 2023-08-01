@@ -6,12 +6,13 @@ typedef struct {
     stb_vorbis *vorbis;
     int channels;
     int at_end;
-    unsigned call_time;
 } playback_t;
 
 typedef struct {
     SDL_AudioDeviceID audio_device;
     SDL_AudioSpec spec;
+    uint64_t start_offset_ticks;
+    double start_offset_time;
     playback_t playback;
 } music_player_t;
 
@@ -24,8 +25,6 @@ static void callback(void *userdata, Uint8 *stream, int len) {
             num_floats) == 0) {
         playback->at_end = 1;
     }
-    // Update precise time
-    playback->call_time = SDL_GetTicks();
 }
 
 static stb_vorbis *open_vorbis(const char *filename) {
@@ -88,24 +87,12 @@ int player_is_playing(music_player_t *player) {
 }
 
 double player_get_time(music_player_t *player) {
-    double time = 0;
-
-    SDL_LockAudioDevice(player->audio_device);
-    double sample = stb_vorbis_get_sample_offset(player->playback.vorbis);
-    SDL_UnlockAudioDevice(player->audio_device);
-    time = sample / player->spec.freq;
-
-    // add precision
-    if (player_is_playing(player) && !player_at_end(player)) {
-        time += (SDL_GetTicks() - player->playback.call_time) / 1000.;
+    double elapsed = 0;
+    if (player_is_playing(player)) {
+        uint64_t ticks_since = SDL_GetTicks64() - player->start_offset_ticks;
+        elapsed = (double)ticks_since / 1000.0;
     }
-
-    return time;
-}
-
-void player_pause(music_player_t *player, int flag) {
-    player->playback.call_time = SDL_GetTicks();
-    SDL_PauseAudioDevice(player->audio_device, flag);
+    return elapsed + player->start_offset_time;
 }
 
 void player_set_time(music_player_t *player, double time) {
@@ -114,6 +101,13 @@ void player_set_time(music_player_t *player, double time) {
     stb_vorbis_seek(player->playback.vorbis, sample);
     player->playback.at_end = 0;
     SDL_UnlockAudioDevice(player->audio_device);
+    player->start_offset_time = time;
+    player->start_offset_ticks = SDL_GetTicks64();
+}
+
+void player_pause(music_player_t *player, int flag) {
+    player_set_time(player, player_get_time(player));
+    SDL_PauseAudioDevice(player->audio_device, flag);
 }
 
 void music_player_deinit(music_player_t *player) {
