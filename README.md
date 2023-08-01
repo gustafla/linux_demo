@@ -7,7 +7,7 @@ that are required for building the demo and [`lib/`](lib/) contains third-party
 libraries (git submodules).
 
 The result is an executable which shows some GLSL shaders with music,
-sync and post processing, and doesn't depend on any other files.
+sync and post processing, and won't depend on any other files.
 We've chosen to compile and statically link all libraries except for libc,
 so that the released production depends on least possible stuff.
 
