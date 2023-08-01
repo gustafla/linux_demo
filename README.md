@@ -84,5 +84,5 @@ And finally, rocket is a sync tracker along with a library to edit
 your demo's synchronization with music without having to change code and
 recompile.
 
-The `src/` directory contains TODO lines of commented C code, which you can
-read starting from any file. Start from `main.c` for example.
+The `src/` directory contains about 1000 lines of commented (WIP) C code,
+which you can read starting from any file. Start from `main.c` for example.
