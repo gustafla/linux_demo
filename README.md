@@ -17,6 +17,11 @@ Warning! This project fails to build if it is stored in a path with spaces.
 For example `/home/user/My Projects/linux_demo` won't work. This is due to
 fundamental limitations in SDL2's build process.
 
+First we need to fetch some third-party libraries:
+```
+git submodule update --init
+```
+
 You will need a C compiler (`gcc` or `clang` recommended) and some library
 headers. This repository does not use a fancy build system, opting to use just
 GNU `make` for simplicity.
@@ -31,11 +36,6 @@ sudo apt install build-essential xxd
 
 ```
 sudo pacman -S base-devel vim
-```
-
-Then we need to fetch some third-party libraries:
-```
-git submodule update --init
 ```
 
 ## Building
