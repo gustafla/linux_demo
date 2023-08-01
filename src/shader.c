@@ -1,7 +1,9 @@
-#include "SDL2/SDL_log.h"
+#include "shader.h"
 #include "filesystem.h"
+#include "uniforms.h"
 #include <GL/gl.h>
 #include <GL/glext.h>
+#include <SDL2/SDL_log.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,33 +68,34 @@ static GLenum type_to_enum(const char *shader_type) {
     return GL_INVALID_ENUM;
 }
 
-GLuint compile_shader(const char *shader_src, const char *shader_type) {
-    GLuint shader;
-
-    shader = glCreateShader(type_to_enum(shader_type));
-    glShaderSource(shader, 1, &shader_src, NULL);
-    glCompileShader(shader);
+shader_t compile_shader(const char *shader_src, const char *shader_type) {
+    shader_t ret = {0};
+    ret.uniforms = parse_uniforms(shader_src, &ret.uniform_count);
+    ret.handle = glCreateShader(type_to_enum(shader_type));
+    glShaderSource(ret.handle, 1, &shader_src, NULL);
+    glCompileShader(ret.handle);
 
     GLint status;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+    glGetShaderiv(ret.handle, GL_COMPILE_STATUS, &status);
     if (status == GL_FALSE) {
         GLint log_len;
-        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_len);
+        glGetShaderiv(ret.handle, GL_INFO_LOG_LENGTH, &log_len);
         GLchar *log = malloc(sizeof(GLchar) * log_len);
-        glGetShaderInfoLog(shader, log_len, NULL, log);
+        glGetShaderInfoLog(ret.handle, log_len, NULL, log);
         SDL_Log("Shader compilation failed:\n%s\n", log);
         free(log);
-        return 0;
+        free(ret.uniforms);
+        return (shader_t){0};
     }
 
-    return shader;
+    return ret;
 }
 
-GLuint compile_shader_file(const char *filename) {
+shader_t compile_shader_file(const char *filename) {
     char *shader_src = NULL;
 
     if (read_file(filename, &shader_src) == 0) {
-        return 0;
+        return (shader_t){0};
     }
 
     // Find file extension
@@ -103,38 +106,61 @@ GLuint compile_shader_file(const char *filename) {
         }
     } while (ret);
 
-    GLuint shader = compile_shader(shader_src, shader_type);
+    shader_t shader = compile_shader(shader_src, shader_type);
 #ifdef DEBUG
     free(shader_src);
 #endif
 
-    if (shader == 0) {
+    if (shader.handle == 0) {
         SDL_Log("File: %s\n", filename);
     }
 
     return shader;
 }
 
-GLuint link_program(size_t count, GLuint *shaders) {
-    GLuint program = glCreateProgram();
+program_t link_program(shader_t *shaders, size_t count) {
+    program_t ret = (program_t){0};
+    ret.handle = glCreateProgram();
 
     for (size_t i = 0; i < count; i++) {
-        glAttachShader(program, shaders[i]);
+        glAttachShader(ret.handle, shaders[i].handle);
     }
 
-    glLinkProgram(program);
+    glLinkProgram(ret.handle);
 
     GLint status;
-    glGetProgramiv(program, GL_LINK_STATUS, &status);
+    glGetProgramiv(ret.handle, GL_LINK_STATUS, &status);
     if (status == GL_FALSE) {
         GLint log_len;
-        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_len);
+        glGetProgramiv(ret.handle, GL_INFO_LOG_LENGTH, &log_len);
         GLchar *log = malloc(sizeof(GLchar) * log_len);
-        glGetProgramInfoLog(program, log_len, NULL, log);
+        glGetProgramInfoLog(ret.handle, log_len, NULL, log);
         SDL_Log("Program linking failed.\n%s\n", log);
         free(log);
-        return 0;
+        return (program_t){0};
     }
 
-    return program;
+    // Join all uniforms. Duplicates are allowed.
+    for (size_t i = 0; i < count; i++) {
+        ret.uniform_count += shaders[i].uniform_count;
+    }
+    ret.uniforms = malloc(ret.uniform_count * sizeof(uniform_t));
+    size_t offset = 0;
+    for (size_t i = 0; i < count; i++) {
+        shader_t *s = shaders + i;
+        memcpy(ret.uniforms + offset, s->uniforms, s->uniform_count);
+        offset += s->uniform_count;
+    }
+
+    return ret;
+}
+
+void shader_deinit(shader_t *shader) {
+    glDeleteShader(shader->handle);
+    free(shader->uniforms);
+}
+
+void program_deinit(program_t *program) {
+    glDeleteProgram(program->handle);
+    free(program->uniforms);
 }

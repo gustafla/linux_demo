@@ -1,5 +1,5 @@
 #include "rand.h"
-#include "util.h"
+#include "shader.h"
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <SDL2/SDL.h>
@@ -42,8 +42,8 @@ typedef struct {
     int y1;
     GLuint quad_buffer;
     GLuint vao;
-    GLuint effect_program;
-    GLuint post_program;
+    program_t effect_program;
+    program_t post_program;
     GLuint noise_texture;
     fbo_t *post_fb;
     fbo_t *output_fb;
@@ -74,10 +74,10 @@ static fbo_t *create_framebuffer(GLsizei width, GLsizei height) {
     return fbo;
 }
 
-static void replace_program(GLuint *old, GLuint new) {
-    if (new) {
-        if (*old) {
-            glDeleteProgram(*old);
+static void replace_program(program_t *old, program_t new) {
+    if (new.handle) {
+        if (old->handle) {
+            program_deinit(old);
         }
         *old = new;
     }
@@ -89,17 +89,21 @@ static void replace_program(GLuint *old, GLuint new) {
 }
 
 void demo_reload(demo_t *demo) {
-    GLuint vertex_shader = compile_shader(vertex_shader_src, "vert");
-    GLuint fragment_shader = compile_shader_file("data/shader.frag");
+    shader_t vertex_shader = compile_shader(vertex_shader_src, "vert");
+    shader_t fragment_shader = compile_shader_file("data/shader.frag");
 
     replace_program(
         &demo->effect_program,
-        link_program(2, (GLuint[]){vertex_shader, fragment_shader}));
+        link_program((shader_t[]){vertex_shader, fragment_shader}, 2));
 
-    GLuint post_shader = compile_shader_file("data/post.frag");
+    shader_t post_shader = compile_shader_file("data/post.frag");
 
     replace_program(&demo->post_program,
-                    link_program(2, (GLuint[]){vertex_shader, post_shader}));
+                    link_program((shader_t[]){vertex_shader, post_shader}, 2));
+
+    shader_deinit(&vertex_shader);
+    shader_deinit(&fragment_shader);
+    shader_deinit(&post_shader);
 }
 
 void demo_resize(demo_t *demo, int width, int height) {
@@ -168,7 +172,7 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     static char noise[NOISE_SIZE * NOISE_SIZE * 4];
 
     // Early return if shaders are currently unusable
-    if (!demo->effect_program || !demo->post_program) {
+    if (!demo->effect_program.handle || !demo->post_program.handle) {
         return;
     }
 
@@ -176,11 +180,10 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glClear(GL_COLOR_BUFFER_BIT);
     glViewport(0, 0, demo->width, demo->height);
 
-    glUseProgram(demo->effect_program);
-    glUniform1f(glGetUniformLocation(demo->effect_program, "u_RocketRow"),
-                rocket_row);
-    glUniform1f(glGetUniformLocation(demo->effect_program, "u_TestValue"),
-                GET_VALUE("test"));
+    glUseProgram(demo->effect_program.handle);
+    glUniform1f(
+        glGetUniformLocation(demo->effect_program.handle, "u_RocketRow"),
+        rocket_row);
 
     glBindVertexArray(demo->vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -190,12 +193,13 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glClear(GL_COLOR_BUFFER_BIT);
     glViewport(0, 0, demo->width, demo->height);
 
-    glUseProgram(demo->post_program);
-    glUniform1f(glGetUniformLocation(demo->post_program, "u_RocketRow"),
+    glUseProgram(demo->post_program.handle);
+    glUniform1f(glGetUniformLocation(demo->post_program.handle, "u_RocketRow"),
                 rocket_row);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, demo->post_fb->framebuffer_texture);
-    glUniform1i(glGetUniformLocation(demo->post_program, "u_InputSampler"), 0);
+    glUniform1i(
+        glGetUniformLocation(demo->post_program.handle, "u_InputSampler"), 0);
     glActiveTexture(GL_TEXTURE1);
     for (GLsizei i = 0; i < NOISE_SIZE * NOISE_SIZE * 4; i++) {
         noise[i] = rand_xoshiro();
@@ -203,8 +207,9 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glBindTexture(GL_TEXTURE_2D, demo->noise_texture);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, NOISE_SIZE, NOISE_SIZE, GL_RGBA,
                     GL_UNSIGNED_BYTE, noise);
-    glUniform1i(glGetUniformLocation(demo->post_program, "u_NoiseSampler"), 1);
-    glUniform1i(glGetUniformLocation(demo->post_program, "u_NoiseSize"),
+    glUniform1i(
+        glGetUniformLocation(demo->post_program.handle, "u_NoiseSampler"), 1);
+    glUniform1i(glGetUniformLocation(demo->post_program.handle, "u_NoiseSize"),
                 NOISE_SIZE);
 
     glBindVertexArray(demo->vao);
