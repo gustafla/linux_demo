@@ -53,7 +53,7 @@ This will use all CPU cores you have available.
 ## Default workflow
 
 0. Put your `music.ogg` file into `data` directory.
-1. Open your rocket editor. I prefer the default Qt-based rocket editor.
+1. Open your [rocket](https://rocket.github.io/) editor. I prefer the default Qt-based rocket editor.
 2. Start `./build/demo`
 3. Open `data/shader.frag` in your editor.
 4. Hack on shaders! Uniforms prefixed with `r_` will automatically show up in rocket.
@@ -78,14 +78,14 @@ make -j $(nproc) DEBUG=0
 This builds a `release/demo` which can be copied anywhere and won't need the
 rocket editor to run.
 
-:warning: **Please note that your system glibc version will prevent running the demo on older distro releases**
+:warning: **Please note: glibc version will prevent running the demo on older distro releases** :warning:
 
 For example: if you build a release build on an Arch Linux which has `glibc 2.37`,
 the demo cannot run on an Ubuntu 22.04 because it ships with `glibc 2.35`!
 
 To avoid this gotcha, you must build your release on the same (or possibly older)
 distribution release as the intended target platform (compo machine).
-One way to do that is to use a container system like docker or podman to build your release.
+One way to do that is to use a container system like docker or [podman](https://podman.io/) to build your release.
 
 Example run for `podman`, as your normal user:
 ```
@@ -95,18 +95,21 @@ cd /build
 make -j $(nproc) DEBUG=0 clean release/demo
 ```
 
+Instructions for installing podman on Arch Linux can be found on the [Arch Wiki](https://wiki.archlinux.org/title/Podman).
+
 ## Overview of libraries and code
 
-We will use the industry-standard SDL2 library as a base for audio output,
+We will use the industry-standard [SDL2](https://www.libsdl.org/) library as a base for audio output,
 keyboard (quit-button), windowing and OpenGL context creation.
 
-OpenGL along with your graphics card drivers will do the heavy lifting for
+[OpenGL](https://docs.gl) along with your graphics card drivers will do the heavy lifting for
 rendering your demo.
 
-stb_vorbis is a single C source file audio codec library for OGG Vorbis,
+[stb_vorbis](https://github.com/nothings/stb/blob/master/stb_vorbis.c)
+is a single C source file audio codec library for OGG Vorbis,
 which we use to avoid having to release a huge uncompressed audio file.
 
-And finally, rocket is a sync tracker along with a library to edit
+And finally, [rocket](https://rocket.github.io/) is a sync tracker along with a library to edit
 your demo's synchronization with music without having to change code and
 recompile.
 
