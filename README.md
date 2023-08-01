@@ -29,13 +29,13 @@ GNU `make` for simplicity.
 ### Ubuntu and Debian
 
 ```
-sudo apt install build-essential xxd
+sudo apt install build-essential xxd libsdl2-dev libpipewire-0.3-dev
 ```
 
 ### Arch Linux
 
 ```
-sudo pacman -S base-devel vim
+sudo pacman -S base-devel vim sdl2 libpipewire
 ```
 
 ## Building
@@ -59,8 +59,7 @@ This will use all CPU cores you have available.
 
 ## Releasing
 
-Your demo is getting ready and you want to build a release build?
-Very simple. Just run
+Your demo is getting ready and you want to build a release build? Just run
 
 ```
 make -j $(nproc) DEBUG=0
@@ -68,6 +67,21 @@ make -j $(nproc) DEBUG=0
 
 This builds a `release/demo` which can be copied anywhere and won't need the
 rocket editor to run.
+
+:warning: *Please note that your system glibc version will prevent running the demo on older distro releases*
+For example: if you build a release build on an Arch Linux which has `glibc 2.37`,
+the demo cannot run on an Ubuntu 22.04 because it ships with `glibc 2.35`!
+
+To avoid this gotcha, you must build your release on the same (or possibly older)
+distribution release as the intended target platform (compo machine).
+One way to do that is to use a container system like docker or podman to build your release.
+
+Example run for `podman`, as your normal user:
+```
+podman run -it --rm -v.:/build ubuntu:22.04
+apt update && apt install build-essential xxd libsdl2-dev libpipewire-0.3-dev
+make -C build -j $(nproc) DEBUG=0 clean release/demo
+```
 
 ## Overview of libraries and code
 
@@ -85,4 +99,14 @@ your demo's synchronization with music without having to change code and
 recompile.
 
 The `src/` directory contains about 1000 lines of commented (WIP) C code,
-which you can read starting from any file. Start from `main.c` for example.
+which you can read starting from any file.
+
+Here is is a list of the source files in (subjectively) decreasing order of importance:
+- `main.c`: Initializes window, OpenGL context, audio, music player, rocket. Contains demo's main loop.
+- `demo.c`: Most rendering and OpenGL calls happen in this file.
+- `shader.c`: Utilities for loading and compiling shaders.
+- `uniforms.c`: Contains a limited and simple (and broken) GLSL parser to extract uniform names from shaders.
+- `music_player.c`: Music player with OGG Vorbis streaming, seeking and timing support for sync editor.
+- `filesystem.c`: Includes `data.c` which `scripts/mkfs.sh` generates at build time. Has functions for reading embedded files.
+- `rocket_io.c`: This file hosts rocket `sync_io_cb` (I/O callback) code for rocket to load tracks from embedded files.
+- `rand.c`: A xoshiro PRNG implementation, mostly used for post processing noise.
