@@ -60,13 +60,13 @@ static size_t parse_type(char *tok, uniform_type_t *type) {
     return type_len;
 }
 
-static int parse_name(const char *tok, char *name) {
+static size_t parse_name(const char *tok, char *name) {
     size_t len = strlen(tok);
 
     for (const char *i = tok; *i; i++) {
         // Reject other characters than alphanumeric, spaces or underscores
         if (!isalnum(*i) && !isblank(*i) && *i != '_') {
-            return -1;
+            return 0;
         }
     }
 
@@ -79,25 +79,25 @@ static int parse_name(const char *tok, char *name) {
         }
 
         if (spaces) {
-            return -1;
+            return 0;
         }
     }
 
     // Reject if only whitespace
     if (spaces == len) {
-        return -1;
+        return 0;
     }
 
     size_t final_len = len - spaces;
     if (final_len >= UFM_NAME_MAX) {
         SDL_Log("Uniform name too long. Maximum is %d\n", UFM_NAME_MAX - 1);
-        return -1;
+        return 0;
     }
 
     memcpy(name, tok, final_len);
     name[final_len] = 0;
 
-    return 0;
+    return final_len;
 }
 
 uniform_t *parse_uniforms(const char *shader_src, size_t *count) {
@@ -126,7 +126,8 @@ uniform_t *parse_uniforms(const char *shader_src, size_t *count) {
 
             // Parse uniform name
             tok = skip_spaces(tok);
-            if (parse_name(tok, result.name) != 0) {
+            result.name_len = parse_name(tok, result.name);
+            if (result.name_len == 0) {
                 SDL_Log("Invalid name %s!\n", tok);
                 continue;
             }
@@ -141,4 +142,14 @@ uniform_t *parse_uniforms(const char *shader_src, size_t *count) {
     free(search);
 
     return results;
+}
+
+void print_uniforms(uniform_t *uniforms, size_t count) {
+    SDL_Log("\n");
+    SDL_Log("%zu uniforms total:\n", count);
+    for (size_t i = 0; i < count; i++) {
+        SDL_Log("Uniform %s\n", uniforms[i].name);
+        SDL_Log("    Name len: %zu\n", uniforms[i].name_len);
+        SDL_Log("    Type: %d\n", uniforms[i].type);
+    }
 }

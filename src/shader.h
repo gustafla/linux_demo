@@ -19,7 +19,8 @@ typedef struct {
 
 shader_t compile_shader(const char *shader_src, const char *shader_type);
 shader_t compile_shader_file(const char *filename);
-program_t link_program(shader_t *shaders, size_t count);
+program_t link_program(shader_t *shaders, size_t count,
+                       const char *uniform_filter);
 void shader_deinit(shader_t *shader);
 void program_deinit(program_t *program);
 

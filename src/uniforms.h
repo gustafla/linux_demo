@@ -17,8 +17,10 @@ typedef enum {
 typedef struct {
     uniform_type_t type;
     char name[UFM_NAME_MAX];
+    size_t name_len;
 } uniform_t;
 
 uniform_t *parse_uniforms(const char *shader_src, size_t *count);
+void print_uniforms(uniform_t *uniforms, size_t count);
 
 #endif

@@ -1,8 +1,10 @@
 #include "rand.h"
 #include "shader.h"
+#include "uniforms.h"
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <SDL2/SDL.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <sync.h>
 
@@ -22,6 +24,11 @@ static const char *vertex_shader_src =
     "    TexCoord = a_TexCoord;\n"
     "    gl_Position = vec4(a_Pos, 0., 1.);\n"
     "}\n";
+
+static const char *auto_uniform_denylist = "u_RocketRow\0"
+                                           "u_InputSampler\0"
+                                           "u_NoiseSampler\0"
+                                           "u_NoiseSize\0";
 
 static const GLfloat quad[] = {-1.f, -1., 0., 0., 1.,  -1., 1., 0.,
                                1.,   1.,  1., 1., -1., -1., 0., 0.,
@@ -92,14 +99,18 @@ void demo_reload(demo_t *demo) {
     shader_t vertex_shader = compile_shader(vertex_shader_src, "vert");
     shader_t fragment_shader = compile_shader_file("data/shader.frag");
 
-    replace_program(
-        &demo->effect_program,
-        link_program((shader_t[]){vertex_shader, fragment_shader}, 2));
+    replace_program(&demo->effect_program,
+                    link_program((shader_t[]){vertex_shader, fragment_shader},
+                                 2, auto_uniform_denylist));
 
     shader_t post_shader = compile_shader_file("data/post.frag");
 
-    replace_program(&demo->post_program,
-                    link_program((shader_t[]){vertex_shader, post_shader}, 2));
+    replace_program(&demo->post_program, link_program(
+                                             (shader_t[]){
+                                                 vertex_shader,
+                                                 post_shader,
+                                             },
+                                             2, auto_uniform_denylist));
 
     shader_deinit(&vertex_shader);
     shader_deinit(&fragment_shader);
@@ -168,6 +179,49 @@ demo_t *demo_init(int width, int height) {
     return demo;
 }
 
+static char *rocket_component(uniform_t *ufm, char c) {
+    static char components[UFM_NAME_MAX + 2];
+    assert(ufm->name_len < UFM_NAME_MAX);
+    memcpy(components, ufm->name, ufm->name_len);
+    components[ufm->name_len] = '.';
+    components[ufm->name_len + 1] = c;
+    components[ufm->name_len + 2] = 0;
+    return components;
+}
+
+static void set_rocket_uniforms(program_t *program, struct sync_device *rocket,
+                                double rocket_row) {
+    for (size_t i = 0; i < program->uniform_count; i++) {
+        uniform_t *ufm = program->uniforms + i;
+
+        GLuint location = glGetUniformLocation(program->handle, ufm->name);
+        switch (ufm->type) {
+        case UFM_FLOAT:
+            glUniform1f(location, GET_VALUE(ufm->name));
+            break;
+        case UFM_VEC2:
+            glUniform2f(location, GET_VALUE(rocket_component(ufm, 'x')),
+                        GET_VALUE(rocket_component(ufm, 'y')));
+            break;
+        case UFM_VEC3:
+            glUniform3f(location, GET_VALUE(rocket_component(ufm, 'x')),
+                        GET_VALUE(rocket_component(ufm, 'y')),
+                        GET_VALUE(rocket_component(ufm, 'z')));
+            break;
+        case UFM_VEC4:
+            glUniform4f(location, GET_VALUE(rocket_component(ufm, 'x')),
+                        GET_VALUE(rocket_component(ufm, 'y')),
+                        GET_VALUE(rocket_component(ufm, 'z')),
+                        GET_VALUE(rocket_component(ufm, 'w')));
+            break;
+        case UFM_INT:
+            glUniform1i(location, (GLint)GET_VALUE(ufm->name));
+            break;
+        case UFM_UNKNOWN:;
+        }
+    }
+}
+
 void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     static char noise[NOISE_SIZE * NOISE_SIZE * 4];
 
@@ -181,6 +235,7 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glViewport(0, 0, demo->width, demo->height);
 
     glUseProgram(demo->effect_program.handle);
+    set_rocket_uniforms(&demo->effect_program, rocket, rocket_row);
     glUniform1f(
         glGetUniformLocation(demo->effect_program.handle, "u_RocketRow"),
         rocket_row);
@@ -194,6 +249,7 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glViewport(0, 0, demo->width, demo->height);
 
     glUseProgram(demo->post_program.handle);
+    set_rocket_uniforms(&demo->post_program, rocket, rocket_row);
     glUniform1f(glGetUniformLocation(demo->post_program.handle, "u_RocketRow"),
                 rocket_row);
     glActiveTexture(GL_TEXTURE0);
