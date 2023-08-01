@@ -99,19 +99,18 @@ Instructions for installing podman on Arch Linux can be found on the [Arch Wiki]
 
 ## Overview of libraries and code
 
-We will use the industry-standard [SDL2](https://www.libsdl.org/) library as a base for audio output,
+We use the industry-standard [SDL2](https://www.libsdl.org/) library as a base for audio output,
 keyboard (quit-button), windowing and OpenGL context creation.
 
-[OpenGL](https://docs.gl) along with your graphics card drivers will do the heavy lifting for
+[OpenGL](https://docs.gl) along with your graphics card drivers does the heavy lifting for
 rendering your demo.
 
 [stb_vorbis](https://github.com/nothings/stb/blob/master/stb_vorbis.c)
 is a single C source file audio codec library for OGG Vorbis,
-which we use to avoid having to release a huge uncompressed audio file.
+which we use to avoid having to release a huge file with uncompressed audio.
 
 And finally, [rocket](https://rocket.github.io/) is a sync tracker along with a library to edit
-your demo's synchronization with music without having to change code and
-recompile.
+your demo's synchronization with music without having to change code and recompile.
 
 The [`src/`](src/) directory contains about 1000 lines of commented (WIP) C code,
 which you can read starting from any file.
