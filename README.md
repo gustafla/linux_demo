@@ -96,6 +96,7 @@ cd /build
 make -j $(nproc) DEBUG=0
 mv release/demo .
 make clean
+exit
 ```
 
 Instructions for installing podman on Arch Linux can be found on the [Arch Wiki](https://wiki.archlinux.org/title/Podman).
