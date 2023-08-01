@@ -6,6 +6,7 @@ in vec2 TexCoord;
 
 uniform float u_RocketRow;
 uniform float u_TestValue;
+uniform vec3 u_CamPos;
 
 void main() {
     FragColor = vec4(TexCoord, sin(u_RocketRow * 6.283 / 8.) * u_TestValue, 1.);
