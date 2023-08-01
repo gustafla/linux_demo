@@ -53,7 +53,7 @@ lib/SDL/configure:
 
 # This rule is for building SDL2
 $(BUILDDIR)/lib/libSDL2.a: | lib/SDL/configure
-	CC="$(CC)" scripts/build_sdl2.sh $(BUILDDIR)
+	CC="$(CC)" scripts/build_sdl2.sh $(BUILDDIR) $(MAKE)
 
 
 # This rule is for building rocket libraries

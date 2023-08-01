@@ -40,5 +40,5 @@ cd lib/SDL
 --enable-locale=no \
 --enable-sdl2-config=no \
 CC="$CC" CFLAGS="-Os"
-make
-make install
+$2
+$2 install

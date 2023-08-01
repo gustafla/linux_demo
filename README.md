@@ -89,10 +89,11 @@ One way to do that is to use a container system like docker or [podman](https://
 
 Example run for `podman`, as your normal user:
 ```
+make clean
 podman run -it --rm -v.:/build ubuntu:22.04
 apt update && apt install build-essential xxd libsdl2-dev libpipewire-0.3-dev
 cd /build
-make -j $(nproc) DEBUG=0 clean release/demo
+make -j $(nproc) DEBUG=0
 mv release/demo .
 make clean
 ```
