@@ -104,6 +104,16 @@ exit
 
 Instructions for installing podman on Arch Linux can be found on the [Arch Wiki](https://wiki.archlinux.org/title/Podman).
 
+### Optional: compress the executable
+
+[`scripts/`](scripts/) has a [shell-dropping](https://in4k.github.io/wiki/linux#compression)
+packer which doesn't depend on anything special.
+This can reduce about half MB from filesize.
+
+```
+scripts/pack.sh release/demo
+```
+
 ## Overview of libraries and code
 
 We use the industry-standard [SDL2](https://www.libsdl.org/) library as a base for audio output,
