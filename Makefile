@@ -34,7 +34,9 @@ LIBRARIES = $(BUILDDIR)/lib/libSDL2.a $(BUILDDIR)/lib/librocket.a $(BUILDDIR)/in
 $(TARGET): $(OBJS)
 	@mkdir -p $(@D)
 	$(CC) -o $@ $(CFLAGS) $(EXTRA_CFLAGS) $^ $(LDLIBS)
-ifeq ($(DEBUG),0)
+ifeq ($(DEBUG),1)
+	$(MAKE) compile_commands.json
+else
 	$(STRIP) $(TARGET)
 endif
 
@@ -81,6 +83,7 @@ $(BUILDDIR)/include/data.c: $(wildcard data/*)
 	scripts/mkfs.sh > $@
 
 
+# This generates a compile_commands.json file for clangd, clang-tidy etc. devtools
 compile_commands.json: $(SOURCES)
 	CC=$(CC) CFLAGS="$(CFLAGS) $(EXTRA_CFLAGS)" scripts/gen_compile_commands_json.sh > $@
 
@@ -89,6 +92,6 @@ compile_commands.json: $(SOURCES)
 
 
 clean:
-	rm -rf $(BUILDDIR) $(RELEASEDIR)
+	rm -rf $(BUILDDIR) $(RELEASEDIR) compile_commands.json
 	$(MAKE) -C lib/SDL clean
 	$(MAKE) -C lib/rocket clean
