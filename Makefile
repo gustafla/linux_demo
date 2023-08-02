@@ -88,10 +88,15 @@ compile_commands.json: $(SOURCES)
 	CC=$(CC) CFLAGS="$(CFLAGS) $(EXTRA_CFLAGS)" scripts/gen_compile_commands_json.sh $(SOURCEDIR) > $@
 
 
-.PHONY: clean
+.PHONY: clean, run
 
 
 clean:
 	rm -rf $(BUILDDIR) $(RELEASEDIR) compile_commands.json
 	$(MAKE) -C lib/SDL clean
 	$(MAKE) -C lib/rocket clean
+
+
+# Compile and run the executable with 'make run'
+run: $(TARGET)
+	./$(TARGET)
