@@ -109,6 +109,8 @@ Instructions for installing podman on Arch Linux can be found on the [Arch Wiki]
 [`scripts/`](scripts/) has a [shell-dropping](https://in4k.github.io/wiki/linux#compression)
 packer which doesn't depend on anything special.
 This can reduce about half MB from filesize.
+However, this may reduce compatibility as it requires xz-utils
+to be installed and /tmp directory to allow executables.
 
 ```
 scripts/pack.sh release/demo
