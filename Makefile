@@ -58,12 +58,12 @@ lib/SDL/configure:
 
 # This rule is for building SDL2
 $(BUILDDIR)/lib/libSDL2.a: | lib/SDL/configure
-	CC="$(CC)" scripts/build_sdl2.sh $(BUILDDIR) $(MAKE)
+	CC=$(CC) BUILDDIR=$(BUILDDIR) MAKE=$(MAKE) scripts/build_sdl2.sh
 
 
 # This rule is for building rocket libraries
 $(BUILDDIR)/lib/librocket.a: | lib/SDL/configure
-	$(MAKE) -C lib/rocket lib/librocket.a lib/librocket-player.a CFLAGS="-Os" CC="$(CC)"
+	$(MAKE) -C lib/rocket lib/librocket.a lib/librocket-player.a CFLAGS="-Os" CC=$(CC)
 	@mkdir -p $(BUILDDIR)/lib $(BUILDDIR)/include
 	cp lib/rocket/lib/*.a $(BUILDDIR)/lib
 	cp lib/rocket/lib/*.h $(BUILDDIR)/include
@@ -78,7 +78,11 @@ $(BUILDDIR)/include/stb_vorbis.c: lib/stb/stb_vorbis.c
 # This rule is for generating build/include/data.c
 $(BUILDDIR)/include/data.c: $(wildcard data/*)
 	@mkdir -p $(BUILDDIR)/include
-	scripts/mkfs.sh $@
+	scripts/mkfs.sh > $@
+
+
+compile_commands.json: $(SOURCES)
+	CC=$(CC) CFLAGS="$(CFLAGS) $(EXTRA_CFLAGS)" scripts/gen_compile_commands_json.sh > $@
 
 	
 .PHONY: clean

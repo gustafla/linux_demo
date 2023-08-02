@@ -1,6 +1,10 @@
 #!/bin/sh
 set -e
-PREFIX="$(realpath $1)"
+[ -z $CC ] && echo Set CC && exit 1
+[ -z $BUILDDIR ] && echo Set BUILDDIR && exit 1
+[ -z $MAKE ] && echo Set MAKE && exit 1
+
+PREFIX="$(realpath $BUILDDIR)"
 cd lib/SDL
 ./configure \
 --prefix="$PREFIX" \
@@ -39,6 +43,6 @@ cd lib/SDL
 --enable-misc=no \
 --enable-locale=no \
 --enable-sdl2-config=no \
-CC="$CC" CFLAGS="-Os"
-$2
-$2 install
+CC=$CC CFLAGS="-Os"
+$MAKE
+$MAKE install
