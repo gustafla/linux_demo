@@ -4,7 +4,7 @@ RELEASEDIR = release
 EXECUTABLE = demo
 CC = gcc
 STRIP = strip --strip-all
-EXTRA_CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -DGL_GLEXT_PROTOTYPES -I$(BUILDDIR)/include -L$(BUILDDIR)/lib
+EXTRA_CFLAGS = -MMD -std=c99 -Wall -Wextra -Wpedantic -DGL_GLEXT_PROTOTYPES -I$(BUILDDIR)/include -L$(BUILDDIR)/lib
 LDLIBS = -lm -l:libSDL2.a -lGL
 DEBUG ?= 1
 
@@ -25,7 +25,8 @@ endif
 SOURCEDIR = src
 TARGET = $(OBJDIR)/$(EXECUTABLE)
 SOURCES = $(wildcard $(SOURCEDIR)/*.c)
-OBJS = $(patsubst %.c,%.o,$(SOURCES:$(SOURCEDIR)/%=$(OBJDIR)/%))
+OBJS = $(SOURCES:%.c=$(OBJDIR)/%.o)
+DEPS = $(OBJS:%.o=%.d)
 LIBRARIES = $(BUILDDIR)/lib/libSDL2.a $(BUILDDIR)/lib/librocket.a $(BUILDDIR)/include/stb_vorbis.c $(BUILDDIR)/include/data.c
 
 
@@ -38,8 +39,12 @@ ifeq ($(DEBUG),0)
 endif
 
 
+# Include compiler-generated header dependencies
+-include $(DEPS)
+
+
 # This rule is for compiling our C source files
-$(OBJDIR)/%.o: $(SOURCEDIR)/%.c $(LIBRARIES)
+$(OBJDIR)/%.o: %.c $(LIBRARIES)
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c -o $@ $<
 

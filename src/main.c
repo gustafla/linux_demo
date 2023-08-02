@@ -1,13 +1,10 @@
+#include "config.h"
 #include "demo.h"
 #include "music_player.h"
 #include "rocket_io.h"
 #include <SDL2/SDL.h>
 #include <sync.h>
 
-#define WIDTH 1920
-#define HEIGHT 720
-#define BEATS_PER_MINUTE 120.0
-#define ROWS_PER_BEAT 8.
 #define ROW_RATE ((BEATS_PER_MINUTE / 60.) * ROWS_PER_BEAT)
 
 #ifdef DEBUG
@@ -118,6 +115,10 @@ int main(void) {
 
     player_pause(player, 0);
     while (running) {
+#ifndef DEBUG
+        // Quit the demo when music ends
+        running = !player_at_end(player);
+#endif
         // Get SDL events, such as keyboard presses or quit-signals
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) {
@@ -154,11 +155,6 @@ int main(void) {
         if (sync_update(rocket, (int)rocket_row, &rocket_callbacks,
                         (void *)player)) {
             SDL_Log("Rocket disconnected\n");
-            running = 0;
-        }
-#else
-        // Quit the demo when music ends
-        if (player_at_end(player)) {
             running = 0;
         }
 #endif
