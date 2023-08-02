@@ -30,6 +30,40 @@ static struct sync_cb rocket_callbacks = {
 };
 #endif
 
+static int poll_events(demo_t *demo, struct sync_device *rocket) {
+    static SDL_Event e;
+
+    // Get SDL events, such as keyboard presses or quit-signals
+    while (SDL_PollEvent(&e)) {
+        if (e.type == SDL_QUIT) {
+            return 0;
+        } else if (e.type == SDL_KEYDOWN) {
+            if (e.key.keysym.sym == SDLK_ESCAPE || e.key.keysym.sym == SDLK_q) {
+                return 0;
+            }
+#ifdef DEBUG
+            if (e.key.keysym.sym == SDLK_s) {
+                sync_save_tracks(rocket);
+                SDL_Log("Tracks saved.\n");
+            }
+            if (e.key.keysym.sym == SDLK_r) {
+                demo_reload(demo);
+                SDL_Log("Shaders reloaded.\n");
+            }
+#endif
+        } else if (e.type == SDL_WINDOWEVENT) {
+            if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+                int w, h;
+                SDL_Window *window = SDL_GetWindowFromID(e.window.windowID);
+                SDL_GL_GetDrawableSize(window, &w, &h);
+                demo_resize(demo, w, h);
+            }
+        }
+    }
+
+    return 1;
+}
+
 int main(void) {
     // Initialize SDL
     // This is required to get OpenGL and audio to work
@@ -75,37 +109,6 @@ int main(void) {
         return 1;
     }
 
-    // Initialize rocket
-    struct sync_device *rocket = sync_create_device("data/sync");
-    if (!rocket) {
-        SDL_Log("Rocket initialization failed\n");
-        return 1;
-    }
-
-#ifdef DEBUG
-    // Connect rocket
-    while (sync_tcp_connect(rocket, "localhost", SYNC_DEFAULT_PORT)) {
-        // Check exit events while waiting for Rocket connection
-        SDL_Event e;
-        while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT) {
-                return 0;
-            } else if (e.type == SDL_KEYDOWN) {
-                if (e.key.keysym.sym == SDLK_ESCAPE ||
-                    e.key.keysym.sym == SDLK_q) {
-                    return 0;
-                }
-            }
-        }
-
-        SDL_Log("Waiting for Rocket editor...\n");
-        SDL_Delay(200);
-    }
-#else
-    // Set rocket io callback
-    sync_set_io_cb(rocket, &rocket_iocb);
-#endif
-
     // Initialize demo rendering
     demo_t *demo = demo_init(WIDTH, HEIGHT);
     if (!demo) {
@@ -121,54 +124,47 @@ int main(void) {
     SDL_GL_GetDrawableSize(window, &w, &h);
     demo_resize(demo, w, h);
 
-    // Here starts the demo's main loop
-    SDL_Event e;
-    int running = 1;
-    double rocket_row = 0;
+    // Initialize rocket
+    struct sync_device *rocket = sync_create_device("data/sync");
+    if (!rocket) {
+        SDL_Log("Rocket initialization failed\n");
+        return 1;
+    }
 
+#ifdef DEBUG
+    // Connect rocket
+    SDL_Log("Connecting to Rocket editor...\n");
+    while (sync_tcp_connect(rocket, "localhost", SYNC_DEFAULT_PORT)) {
+        // Check exit events while waiting for Rocket connection
+        if (!poll_events(demo, rocket)) {
+            return 0;
+        }
+        SDL_Delay(200);
+    }
+#else
+    // Set rocket io callback
+    sync_set_io_cb(rocket, &rocket_iocb);
+#endif
+
+    // Here starts the demo's main loop
     player_pause(player, 0);
-    while (running) {
+    while (poll_events(demo, rocket)) {
 #ifndef DEBUG
         // Quit the demo when music ends
-        running = !player_at_end(player);
-#endif
-        // Get SDL events, such as keyboard presses or quit-signals
-        while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT) {
-                running = 0;
-            } else if (e.type == SDL_KEYDOWN) {
-                if (e.key.keysym.sym == SDLK_ESCAPE ||
-                    e.key.keysym.sym == SDLK_q) {
-                    running = 0;
-                }
-#ifdef DEBUG
-                if (e.key.keysym.sym == SDLK_s) {
-                    sync_save_tracks(rocket);
-                    SDL_Log("Tracks saved.\n");
-                }
-                if (e.key.keysym.sym == SDLK_r) {
-                    demo_reload(demo);
-                    SDL_Log("Shaders reloaded.\n");
-                }
-#endif
-            } else if (e.type == SDL_WINDOWEVENT) {
-                if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-                    SDL_GL_GetDrawableSize(window, &w, &h);
-                    demo_resize(demo, w, h);
-                }
-            }
+        if (player_at_end(player)) {
+            break;
         }
+#endif
 
         // Get time from music player
-        double time = player_get_time(player);
-        rocket_row = time * ROW_RATE;
+        double rocket_row = player_get_time(player) * ROW_RATE;
 
 #ifdef DEBUG
         // Update rocket
         if (sync_update(rocket, (int)rocket_row, &rocket_callbacks,
                         (void *)player)) {
             SDL_Log("Rocket disconnected\n");
-            running = 0;
+            break;
         }
 #endif
 
