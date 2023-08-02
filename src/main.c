@@ -85,6 +85,19 @@ int main(void) {
 #ifdef DEBUG
     // Connect rocket
     while (sync_tcp_connect(rocket, "localhost", SYNC_DEFAULT_PORT)) {
+        // Check exit events while waiting for Rocket connection
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            if (e.type == SDL_QUIT) {
+                return 0;
+            } else if (e.type == SDL_KEYDOWN) {
+                if (e.key.keysym.sym == SDLK_ESCAPE ||
+                    e.key.keysym.sym == SDLK_q) {
+                    return 0;
+                }
+            }
+        }
+
         SDL_Log("Waiting for Rocket editor...\n");
         SDL_Delay(200);
     }
