@@ -58,7 +58,7 @@ This will use all CPU cores you have available.
 1. Edit [`src/config.h`](src/config.h) to match your desired resolution and **your music track's BPM**! Don't skip this. Then run `make` once more.
 2. Open your [rocket](https://rocket.github.io/) editor. I prefer the default Qt-based rocket editor.
 3. Start `./build/demo`
-4. Open `shaders/shader.frag` in your editor.
+4. Open [`shaders/shader.frag`](shaders/shader.frag) in your editor.
 5. Hack on shaders! Uniforms prefixed with `r_` will automatically show up in rocket.
 6. Reload shaders and uniforms by pressing R. No `make` or restart needed.
 
