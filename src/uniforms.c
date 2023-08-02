@@ -109,8 +109,7 @@ uniform_t *parse_uniforms(const char *shader_src, size_t *count) {
     for (char *tok = strtok(search, ";\n"); tok; tok = strtok(NULL, ";\n")) {
         tok = skip_spaces(tok);
 
-        size_t len = strlen(tok);
-        if (memcmp(tok, "uniform", min(7, len)) == 0) {
+        if (match_str(tok, "uniform")) {
             uniform_t result = (uniform_t){0};
 
             tok += 7;
