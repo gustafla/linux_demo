@@ -92,7 +92,7 @@ Example run for `podman`, as your normal user:
 ```
 make clean
 podman run -it --rm -v.:/build ubuntu:22.04
-apt-get update && apt-get -y install build-essential xxd libsdl2-dev libpipewire-0.3-dev libsamplerate-dev
+apt-get update && apt-get -y install build-essential xxd libsdl2-dev libpipewire-0.3-dev libsamplerate-dev libudev-dev
 cd /build
 make -j $(nproc) DEBUG=0
 mv release/demo .

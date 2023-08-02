@@ -24,7 +24,7 @@ cd lib/SDL
 --enable-sndio=no \
 --enable-render=no \
 --enable-events=yes \
---enable-libudev=no \
+--enable-libudev=yes \
 --enable-dbus=no \
 --enable-ime=no \
 --enable-fcitx=no \
