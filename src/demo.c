@@ -15,19 +15,11 @@
 
 static const char *vertex_shader_src =
     "#version 330 core\n"
-    "layout(location=0) in vec2 a_Pos;\n"
-    "layout(location=1) in vec2 a_TexCoord;\n"
-    "out vec2 Pos;\n"
-    "out vec2 TexCoord;\n"
     "void main() {\n"
-    "    Pos = a_Pos;\n"
-    "    TexCoord = a_TexCoord;\n"
-    "    gl_Position = vec4(a_Pos, 0., 1.);\n"
+    "    vec3 c = vec3(-1,0,1);\n"
+    "    vec4 coords[4] = vec4[4](c.xxyz, c.zxyz, c.xzyz, c.zzyz);\n"
+    "    gl_Position = coords[gl_VertexID];\n"
     "}\n";
-
-static const GLfloat quad[] = {-1.f, -1., 0., 0., 1.,  -1., 1., 0.,
-                               1.,   1.,  1., 1., -1., -1., 0., 0.,
-                               1.,   1.,  1., 1., -1., 1.,  0., 1.};
 
 typedef struct {
     GLuint framebuffer;
@@ -42,7 +34,6 @@ typedef struct {
     int y0;
     int x1;
     int y1;
-    GLuint quad_buffer;
     GLuint vao;
     program_t effect_program;
     program_t post_program;
@@ -141,21 +132,9 @@ demo_t *demo_init(int width, int height) {
     demo->aspect_ratio = (double)width / (double)height;
     demo_resize(demo, width, height);
 
-    glGenBuffers(1, &demo->quad_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, demo->quad_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quad), (const GLvoid *)quad,
-                 GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
     glGenVertexArrays(1, &demo->vao);
     glBindVertexArray(demo->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, demo->quad_buffer);
-    size_t stride = sizeof(GLfloat) * 4;
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, NULL);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride,
-                          (const void *)(sizeof(GLfloat) * 2));
-    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
     demo_reload(demo);
@@ -244,9 +223,12 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glUniform1f(
         glGetUniformLocation(demo->effect_program.handle, "u_RocketRow"),
         rocket_row);
+    glUniform2f(
+        glGetUniformLocation(demo->effect_program.handle, "u_Resolution"),
+        demo->width, demo->height);
 
     glBindVertexArray(demo->vao);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, demo->output_fb->framebuffer);
@@ -257,6 +239,8 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     set_rocket_uniforms(&demo->post_program, rocket, rocket_row);
     glUniform1f(glGetUniformLocation(demo->post_program.handle, "u_RocketRow"),
                 rocket_row);
+    glUniform2f(glGetUniformLocation(demo->post_program.handle, "u_Resolution"),
+                demo->width, demo->height);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, demo->post_fb->framebuffer_texture);
     glUniform1i(
@@ -274,7 +258,7 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
                 NOISE_SIZE);
 
     glBindVertexArray(demo->vao);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, demo->output_fb->framebuffer);
