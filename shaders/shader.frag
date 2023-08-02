@@ -10,4 +10,5 @@ uniform vec3 r_CamPos;
 
 void main() {
     FragColor = vec4(TexCoord, sin(u_RocketRow * 6.283 / 8.) * r_TestValue, 1.);
+    FragColor += vec4(0, 1, 1, 0);
 }

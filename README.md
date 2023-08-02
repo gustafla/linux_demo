@@ -2,10 +2,12 @@
 
 Welcome. This is a C99 codebase which will let you get started with creating
 native OpenGL demos on Linux. The repository is structured so that
-[`data/`](data/) contains binary files (assets such as music) as well as shaders,
-[`src/`](src/) contains source code, [`scripts/`](scripts/) contains scripts
-that are required for building the demo and [`lib/`](lib/) contains third-party
-libraries (git submodules).
+[`data/`](data/) contains binary files (assets such as music),
+[`shaders/`](shaders/) contains shaders,
+[`src/`](src/) contains source code,
+[`scripts/`](scripts/) contains scripts
+that are required for building the demo and
+[`lib/`](lib/) contains third-party libraries (git submodules).
 
 The result is an executable which shows some GLSL shaders with music,
 sync and post processing, and won't depend on any other files.
@@ -56,7 +58,7 @@ This will use all CPU cores you have available.
 1. Edit [`src/config.h`](src/config.h) to match your desired resolution and **your music track's BPM**! Don't skip this. Then run `make` once more.
 2. Open your [rocket](https://rocket.github.io/) editor. I prefer the default Qt-based rocket editor.
 3. Start `./build/demo`
-4. Open `data/shader.frag` in your editor.
+4. Open `shaders/shader.frag` in your editor.
 5. Hack on shaders! Uniforms prefixed with `r_` will automatically show up in rocket.
 6. Reload shaders and uniforms by pressing R. No `make` or restart needed.
 

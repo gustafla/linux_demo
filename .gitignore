@@ -1,7 +1,6 @@
 build/
 release/
-data/*.track
-data/music.ogg
+data/
 compile_commands.json
 .cache/
 demo

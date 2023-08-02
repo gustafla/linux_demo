@@ -92,13 +92,13 @@ static void replace_program(program_t *old, program_t new) {
 
 void demo_reload(demo_t *demo) {
     shader_t vertex_shader = compile_shader(vertex_shader_src, "vert");
-    shader_t fragment_shader = compile_shader_file("data/shader.frag");
+    shader_t fragment_shader = compile_shader_file("shaders/shader.frag");
 
     replace_program(
         &demo->effect_program,
         link_program((shader_t[]){vertex_shader, fragment_shader}, 2));
 
-    shader_t post_shader = compile_shader_file("data/post.frag");
+    shader_t post_shader = compile_shader_file("shaders/post.frag");
 
     replace_program(&demo->post_program, link_program(
                                              (shader_t[]){

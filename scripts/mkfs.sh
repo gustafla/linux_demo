@@ -1,7 +1,8 @@
 #!/bin/sh
 set -e
+[ -z "$1" ] && echo Pass input directories as arguments && exit 1
 
-IN=data/*
+IN=$(find $@ -type f)
 
 # Convert every data file to C source with xxd
 for file in $IN; do

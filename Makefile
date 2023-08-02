@@ -78,16 +78,16 @@ $(BUILDDIR)/include/stb_vorbis.c: lib/stb/stb_vorbis.c
 
 
 # This rule is for generating build/include/data.c
-$(BUILDDIR)/include/data.c: $(wildcard data/*)
+$(BUILDDIR)/include/data.c: $(wildcard shaders/*) $(wildcard data/*)
 	@mkdir -p $(BUILDDIR)/include
-	scripts/mkfs.sh > $@
+	scripts/mkfs.sh shaders/ data/ > $@
 
 
 # This generates a compile_commands.json file for clangd, clang-tidy etc. devtools
 compile_commands.json: $(SOURCES)
-	CC=$(CC) CFLAGS="$(CFLAGS) $(EXTRA_CFLAGS)" scripts/gen_compile_commands_json.sh > $@
+	CC=$(CC) CFLAGS="$(CFLAGS) $(EXTRA_CFLAGS)" scripts/gen_compile_commands_json.sh $(SOURCEDIR) > $@
 
-	
+
 .PHONY: clean
 
 
