@@ -4,30 +4,33 @@ RELEASEDIR = release
 EXECUTABLE = demo
 CC = gcc
 STRIP = strip --strip-all
-EXTRA_CFLAGS = -MMD -std=c99 -Wall -Wextra -Wpedantic -DGL_GLEXT_PROTOTYPES -I$(BUILDDIR)/include -L$(BUILDDIR)/lib
-LDLIBS = -lm -l:libSDL2.a -lGL
+EXTRA_CFLAGS = -MMD -std=c99 -Wall -Wextra -Wpedantic -Wno-unused-parameter -DGL_GLEXT_PROTOTYPES -I$(BUILDDIR)/include -L$(BUILDDIR)/lib
+SOURCEDIR = src
+SOURCES = $(wildcard $(SOURCEDIR)/*.c)
+LDLIBS = -lm -l:libSDL2.a -lGL -ldl -lpthread
+LIBRARIES = $(BUILDDIR)/lib/libSDL2.a $(BUILDDIR)/lib/librocket.a $(BUILDDIR)/include/stb_vorbis.c
 DEBUG ?= 1
 
-# Set debug and release build flags
+
+# Set debug and release build variables
 ifeq ($(DEBUG),0)
-OBJDIR=$(RELEASEDIR)
+OBJDIR = $(RELEASEDIR)
 CFLAGS += -Os
 EXTRA_CFLAGS += -DSYNC_PLAYER
 LDLIBS += -l:librocket-player.a
+LIBRARIES += $(BUILDDIR)/include/data.c
 else
-OBJDIR=$(BUILDDIR)
+OBJDIR = $(BUILDDIR)
 CFLAGS += -Og -g
 EXTRA_CFLAGS += -DDEBUG
 LDLIBS += -l:librocket.a
 endif
 
+
 # Variables for output and intermediate artifacts
-SOURCEDIR = src
 TARGET = $(OBJDIR)/$(EXECUTABLE)
-SOURCES = $(wildcard $(SOURCEDIR)/*.c)
 OBJS = $(SOURCES:%.c=$(OBJDIR)/%.o)
 DEPS = $(OBJS:%.o=%.d)
-LIBRARIES = $(BUILDDIR)/lib/libSDL2.a $(BUILDDIR)/lib/librocket.a $(BUILDDIR)/include/stb_vorbis.c $(BUILDDIR)/include/data.c
 
 
 # This rule is for linking the final executable

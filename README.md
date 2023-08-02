@@ -33,13 +33,13 @@ GNU `make` for simplicity.
 ### Ubuntu and Debian
 
 ```
-sudo apt install build-essential xxd libsdl2-dev libpipewire-0.3-dev libsamplerate-dev
+sudo apt install build-essential xxd libsdl2-dev libsamplerate-dev
 ```
 
 ### Arch Linux
 
 ```
-sudo pacman -S base-devel vim sdl2 libpipewire libsamplerate
+sudo pacman -S base-devel vim sdl2 libsamplerate
 ```
 
 ## Building
@@ -93,8 +93,8 @@ One way to do that is to use a container system like docker or [podman](https://
 Example run for `podman`, as your normal user:
 ```
 make clean
-podman run -it --rm -v.:/build ubuntu:22.04
-apt-get update && apt-get -y install build-essential xxd libsdl2-dev libpipewire-0.3-dev libsamplerate-dev libudev-dev
+podman run -it --rm -v.:/build ubuntu:20.04
+apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install build-essential xxd libsdl2-dev libsamplerate-dev libudev-dev
 cd /build
 make -j $(nproc) DEBUG=0
 mv release/demo .

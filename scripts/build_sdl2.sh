@@ -18,7 +18,7 @@ cd lib/SDL
 --enable-video-vulkan=no \
 --enable-audio=yes \
 --enable-alsa=yes \
---enable-pipewire=yes \
+--enable-pipewire=no \
 --enable-pulseaudio=no \
 --enable-jack=no \
 --enable-arts=no \

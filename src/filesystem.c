@@ -1,3 +1,13 @@
+#ifdef DEBUG
+
+#include <stddef.h>
+
+const unsigned char *filesystem_open(const char *filename, unsigned int *len) {
+    return NULL;
+}
+
+#else
+
 #include "data.c"
 #include <string.h>
 
@@ -14,3 +24,5 @@ const unsigned char *filesystem_open(const char *filename, unsigned int *len) {
 
     return NULL;
 }
+
+#endif
