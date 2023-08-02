@@ -93,8 +93,14 @@ compile_commands.json: $(SOURCES)
 
 .PHONY: clean
 
-
 clean:
 	rm -rf $(BUILDDIR) $(RELEASEDIR) compile_commands.json
 	$(MAKE) -C lib/SDL clean
 	$(MAKE) -C lib/rocket clean
+
+
+.PHONY: run
+
+# Compile and run the executable with 'make run'
+run: $(TARGET)
+	./$(TARGET)
