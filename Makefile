@@ -86,5 +86,5 @@ $(BUILDDIR)/include/data.c: $(wildcard data/*)
 
 clean:
 	rm -rf $(BUILDDIR) $(RELEASEDIR)
-	$(MAKE) -C lib/SDL $(MAKECMDGOALS)
-	$(MAKE) -C lib/rocket $(MAKECMDGOALS)
+	$(MAKE) -C lib/SDL clean
+	$(MAKE) -C lib/rocket clean
