@@ -141,6 +141,7 @@ int main(void) {
         }
         SDL_Delay(200);
     }
+    SDL_Log("Connected.\n");
 #else
     // Set rocket io callback
     sync_set_io_cb(rocket, &rocket_iocb);
