@@ -25,7 +25,11 @@ static char *skip_spaces(char *tok) {
 static int match_str(const char *a, const char *b) {
     size_t len_a = strlen(a);
     size_t len_b = strlen(b);
-    return memcmp(a, b, min(len_a, len_b)) == 0;
+    size_t len = min(len_a, len_b);
+    if (!len) {
+        return 0;
+    }
+    return memcmp(a, b, len) == 0;
 }
 
 static size_t parse_type(char *tok, uniform_type_t *type) {
