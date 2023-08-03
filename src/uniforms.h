@@ -21,6 +21,5 @@ typedef struct {
 } uniform_t;
 
 uniform_t *parse_uniforms(const char *shader_src, size_t *count);
-void print_uniforms(uniform_t *uniforms, size_t count);
 
 #endif

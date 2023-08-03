@@ -146,13 +146,3 @@ uniform_t *parse_uniforms(const char *shader_src, size_t *count) {
 
     return results;
 }
-
-void print_uniforms(uniform_t *uniforms, size_t count) {
-    SDL_Log("\n");
-    SDL_Log("%zu uniforms total:\n", count);
-    for (size_t i = 0; i < count; i++) {
-        SDL_Log("Uniform %s\n", uniforms[i].name);
-        SDL_Log("    Name len: %zu\n", uniforms[i].name_len);
-        SDL_Log("    Type: %d\n", uniforms[i].type);
-    }
-}

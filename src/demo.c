@@ -34,6 +34,7 @@ typedef struct {
     int y0;
     int x1;
     int y1;
+    uint64_t reload_time;
     GLuint vao;
     program_t effect_program;
     program_t post_program;
@@ -68,17 +69,15 @@ static fbo_t *create_framebuffer(GLsizei width, GLsizei height) {
 }
 
 static void replace_program(program_t *old, program_t new) {
-    if (new.handle) {
-        if (old->handle) {
-            program_deinit(old);
-        }
-        *old = new;
-    }
 #ifndef DEBUG
-    else {
+    if (!new.handle) {
         abort();
     }
 #endif
+    if (old->handle) {
+        program_deinit(old);
+    }
+    *old = new;
 }
 
 void demo_reload(demo_t *demo) {
@@ -101,6 +100,7 @@ void demo_reload(demo_t *demo) {
     shader_deinit(&vertex_shader);
     shader_deinit(&fragment_shader);
     shader_deinit(&post_shader);
+    demo->reload_time = SDL_GetTicks64();
 }
 
 void demo_resize(demo_t *demo, int width, int height) {
@@ -209,10 +209,17 @@ static void set_rocket_uniforms(program_t *program, struct sync_device *rocket,
 void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     static char noise[NOISE_SIZE * NOISE_SIZE * 4];
 
+#ifdef DEBUG
     // Early return if shaders are currently unusable
     if (!demo->effect_program.handle || !demo->post_program.handle) {
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glClearColor(0.3, 0., 0., 1.);
+        glClear(GL_COLOR_BUFFER_BIT);
         return;
     }
+#endif
+
+    glClearColor(0., 0., 0., 1.);
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, demo->post_fb->framebuffer);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -264,8 +271,17 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glBindFramebuffer(GL_READ_FRAMEBUFFER, demo->output_fb->framebuffer);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT);
-    glBlitFramebuffer(0, 0, demo->width, demo->height, demo->x0, demo->y0,
-                      demo->x1, demo->y1, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+#ifdef DEBUG
+    // Animate shader reload to show feedback in debug builds
+    float a = fmin((SDL_GetTicks64() - demo->reload_time) / 100.f, 1.);
+    const GLint x0 = demo->x0 * a, x1 = demo->x1 * a, y0 = demo->y0 * a,
+                y1 = demo->y1 * a, w = demo->width, h = demo->height;
+#else
+    const GLint x0 = demo->x0, x1 = demo->x1, y0 = demo->y0, y1 = demo->y1,
+                w = demo->width, h = demo->height;
+#endif
+    glBlitFramebuffer(0, 0, w, h, x0, y0, x1, y1, GL_COLOR_BUFFER_BIT,
+                      GL_LINEAR);
 }
 
 void demo_deinit(demo_t *demo) {

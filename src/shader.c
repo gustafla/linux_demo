@@ -85,6 +85,7 @@ shader_t compile_shader(const char *shader_src, const char *shader_type) {
         SDL_Log("Shader compilation failed:\n%s\n", log);
         free(log);
         free(ret.uniforms);
+        glDeleteShader(ret.handle);
         return (shader_t){0};
     }
 
@@ -123,7 +124,12 @@ program_t link_program(shader_t *shaders, size_t count) {
     ret.handle = glCreateProgram();
 
     for (size_t i = 0; i < count; i++) {
-        glAttachShader(ret.handle, shaders[i].handle);
+        const GLuint shader = shaders[i].handle;
+        if (!shader) {
+            glDeleteProgram(ret.handle);
+            return (program_t){0};
+        }
+        glAttachShader(ret.handle, shader);
     }
 
     glLinkProgram(ret.handle);
@@ -137,6 +143,7 @@ program_t link_program(shader_t *shaders, size_t count) {
         glGetProgramInfoLog(ret.handle, log_len, NULL, log);
         SDL_Log("Program linking failed.\n%s\n", log);
         free(log);
+        glDeleteProgram(ret.handle);
         return (program_t){0};
     }
 
@@ -152,8 +159,6 @@ program_t link_program(shader_t *shaders, size_t count) {
                s->uniform_count * sizeof(uniform_t));
         offset += s->uniform_count;
     }
-
-    print_uniforms(ret.uniforms, ret.uniform_count);
 
     return ret;
 }
