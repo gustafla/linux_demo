@@ -147,8 +147,8 @@ demo_t *demo_init(int width, int height) {
     glActiveTexture(GL_TEXTURE0);
     glGenTextures(1, &demo->noise_texture);
     glBindTexture(GL_TEXTURE_2D, demo->noise_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, NOISE_SIZE, NOISE_SIZE, 0, GL_RED,
-                 GL_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, NOISE_SIZE, NOISE_SIZE, 0,
+                 GL_RED, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
@@ -208,8 +208,15 @@ static void set_rocket_uniforms(program_t *program, struct sync_device *rocket,
     }
 }
 
+void set_noise_texture(demo_t *demo, GLuint program, int texture) {
+    glActiveTexture(GL_TEXTURE0 + texture);
+    glBindTexture(GL_TEXTURE_2D, demo->noise_texture);
+    glUniform1i(glGetUniformLocation(program, "u_NoiseSampler"), texture);
+    glUniform1i(glGetUniformLocation(program, "u_NoiseSize"), NOISE_SIZE);
+}
+
 void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
-    static char noise[NOISE_SIZE * NOISE_SIZE * 4];
+    static unsigned char noise[NOISE_SIZE * NOISE_SIZE * 4];
 
 #ifdef DEBUG
     // Early return if shaders are currently unusable
@@ -223,6 +230,18 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
 
     glClearColor(0., 0., 0., 1.);
 
+    // MAKE SOME NOISE !!!! WOOO ----------------------------------------------
+
+    glActiveTexture(GL_TEXTURE0);
+    for (GLsizei i = 0; i < NOISE_SIZE * NOISE_SIZE * 4; i++) {
+        noise[i] = rand_xoshiro();
+    }
+    glBindTexture(GL_TEXTURE_2D, demo->noise_texture);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, NOISE_SIZE, NOISE_SIZE, GL_RGBA,
+                    GL_UNSIGNED_BYTE, noise);
+
+    // Effect shader ----------------------------------------------------------
+
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, demo->post_fb->framebuffer);
     glClear(GL_COLOR_BUFFER_BIT);
     glViewport(0, 0, demo->width, demo->height);
@@ -235,10 +254,13 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glUniform2f(
         glGetUniformLocation(demo->effect_program.handle, "u_Resolution"),
         demo->width, demo->height);
+    set_noise_texture(demo, demo->effect_program.handle, 0);
 
     glBindVertexArray(demo->vao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
+
+    // Post shader ------------------------------------------------------------
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, demo->output_fb->framebuffer);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -254,21 +276,13 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glBindTexture(GL_TEXTURE_2D, demo->post_fb->framebuffer_texture);
     glUniform1i(
         glGetUniformLocation(demo->post_program.handle, "u_InputSampler"), 0);
-    glActiveTexture(GL_TEXTURE1);
-    for (GLsizei i = 0; i < NOISE_SIZE * NOISE_SIZE * 4; i++) {
-        noise[i] = rand_xoshiro();
-    }
-    glBindTexture(GL_TEXTURE_2D, demo->noise_texture);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, NOISE_SIZE, NOISE_SIZE, GL_RGBA,
-                    GL_UNSIGNED_BYTE, noise);
-    glUniform1i(
-        glGetUniformLocation(demo->post_program.handle, "u_NoiseSampler"), 1);
-    glUniform1i(glGetUniformLocation(demo->post_program.handle, "u_NoiseSize"),
-                NOISE_SIZE);
+    set_noise_texture(demo, demo->post_program.handle, 1);
 
     glBindVertexArray(demo->vao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
+
+    // Output blit ------------------------------------------------------------
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, demo->output_fb->framebuffer);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
