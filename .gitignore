@@ -3,4 +3,5 @@ release/
 data/
 compile_commands.json
 .cache/
-demo
+demo*
+*.rocket
