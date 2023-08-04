@@ -85,4 +85,5 @@ void main() {
     float ndotl = max(dot(-normal, vec3(0., -1., 0)), 0.);
     
     FragColor = vec4(normal * ndotl, 1.);
+    FragColor = vec4(vec3(ndotl), 1.);
 }
