@@ -11,7 +11,7 @@ uniform float u_RocketRow;
 uniform vec2 u_Resolution;
 uniform float r_PostAberration;
 
-#define BLUR_SAMPLES 30
+#define BLUR_SAMPLES 8
 
 vec3 acesApprox(vec3 v) {
     v *= 0.6;
@@ -23,10 +23,11 @@ vec3 acesApprox(vec3 v) {
     return clamp((v*(a*v+b))/(v*(c*v+d)+e), 0., 1.);
 }
 
-vec3 radialSum(float r) {
+vec3 radialSum(vec2 r) {
     vec3 color = vec3(0.);
     for (int i = 0; i < BLUR_SAMPLES; i++) {
-        vec2 uv = FragCoord * (0.5 + float(i) * r * r_PostAberration) + 0.5;
+        vec2 d = (r * float(i) * r_PostAberration) / BLUR_SAMPLES;
+        vec2 uv = FragCoord * (0.5 + d) + 0.5;
         color += texture2D(u_InputSampler, uv).rgb;
     }
     return color;
@@ -34,10 +35,12 @@ vec3 radialSum(float r) {
 
 void main() {
     // Input color with RGB aberration
-    vec3 color = vec3(radialSum(0.0004).r, radialSum(0.0008).g, radialSum(0.0016).b) / BLUR_SAMPLES;
-
-    // Add bloom
-    //color += texture2D(u_BloomSampler, uv).rgb;
+    vec2 pixel = 1. / u_Resolution;
+    vec3 color = vec3(
+        radialSum(pixel).r,
+        radialSum(pixel * 2.).g,
+        radialSum(pixel * 3.).b
+    ) / BLUR_SAMPLES;
 
     // Tone mapping
     color = acesApprox(color);
