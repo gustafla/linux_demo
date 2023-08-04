@@ -1,12 +1,44 @@
 #version 330 core
 
+// Based on writing by Jamie Wong
+// https://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions
+// and Inigo Quilez
+// https://iquilezles.org/articles/distfunctions/
+
 out vec4 FragColor;
+
+in vec2 FragCoord;
 
 uniform float u_RocketRow;
 uniform vec2 u_Resolution;
+uniform float r_CamFov;
 uniform vec3 r_CamPos;
+uniform vec3 r_CamTarget;
 
+#define PI 3.14159265
 #define EPSILON 0.001
+#define SAMPLES 4
+
+float aspectRatio() {
+    return u_Resolution.x / u_Resolution.y;
+}
+
+mat3 viewMatrix() {
+	vec3 f = normalize(r_CamTarget - r_CamPos);
+	vec3 s = normalize(cross(f, vec3(0., 1., 0.)));
+	vec3 u = cross(s, f);
+    return mat3(s, u, f);
+}
+
+vec3 cameraRay() {
+    float c = tan((90. - r_CamFov / 2.) * (PI / 180.));
+    return normalize(vec3(FragCoord * vec2(aspectRatio(), 1.), c));
+}
+
+vec3 rotate(vec3 v, vec4 q) {
+    vec3 t = cross(q.xyz, v) + q.w * v;
+    return v + 2.*cross(q.xyz, t);
+}
 
 float sdSphere( vec3 p, float s ) {
     return length(p)-s;
@@ -22,15 +54,12 @@ float sdf(vec3 p) {
     //return sdSphere(p, 0.5);
 }
 
-vec3 calcNormal(vec3 pos) {
-	const float h = EPSILON;
-	#define ZERO (min(int(u_RocketRow),0))
-	vec3 n = vec3(0.0);
-	for( int i=ZERO; i<4; i++ ) {
-		vec3 e = 0.5773*(2.0*vec3((((i+3)>>1)&1),((i>>1)&1),(i&1))-1.0);
-		n += e*sdf(pos+e*h);
-	}
-	return normalize(n);
+vec3 normal(vec3 p) {
+    return normalize(vec3(
+        sdf(vec3(p.x + EPSILON, p.y, p.z)) - sdf(vec3(p.x - EPSILON, p.y, p.z)),
+        sdf(vec3(p.x, p.y + EPSILON, p.z)) - sdf(vec3(p.x, p.y - EPSILON, p.z)),
+        sdf(vec3(p.x, p.y, p.z  + EPSILON)) - sdf(vec3(p.x, p.y, p.z - EPSILON))
+    ));
 }
 
 float march(vec3 o, vec3 d) {
@@ -47,15 +76,12 @@ float march(vec3 o, vec3 d) {
 }
 
 void main() {
-    vec2 screen_pos = (gl_FragCoord.xy * 2. / u_Resolution) - vec2(1.);
-    screen_pos.x *= u_Resolution.x / u_Resolution.y;
+    vec3 ray = viewMatrix() * cameraRay(); 
 
-    vec3 dir = normalize(vec3(screen_pos, -1.));
+    float t = march(r_CamPos, ray);
+    vec3 pos = r_CamPos + ray * t;
 
-    float t = march(r_CamPos, dir);
-    vec3 pos = r_CamPos + dir * t;
-
-    vec3 normal = calcNormal(pos);
+    vec3 normal = normal(pos);
     float ndotl = max(dot(-normal, vec3(0., -1., 0)), 0.);
     
     FragColor = vec4(normal * ndotl, 1.);

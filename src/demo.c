@@ -15,9 +15,11 @@
 
 static const char *vertex_shader_src =
     "#version 330 core\n"
+    "out vec2 FragCoord;\n"
     "void main() {\n"
-    "    vec3 c = vec3(-1,0,1);\n"
-    "    vec4 coords[4] = vec4[4](c.xxyz, c.zxyz, c.xzyz, c.zzyz);\n"
+    "    vec2 c = vec2(-1, 1);\n"
+    "    vec4 coords[4] = vec4[4](c.xxyy, c.yxyy, c.xyyy, c.yyyy);\n"
+    "    FragCoord = coords[gl_VertexID].xy;\n"
     "    gl_Position = coords[gl_VertexID];\n"
     "}\n";
 

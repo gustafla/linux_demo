@@ -2,6 +2,8 @@
 
 out vec4 FragColor;
 
+in vec2 FragCoord;
+
 uniform sampler2D u_InputSampler;
 uniform sampler2D u_NoiseSampler;
 uniform int u_NoiseSize;
@@ -19,8 +21,10 @@ vec3 aces_approx(vec3 v) {
 }
 
 void main() {
+    vec2 uv = FragCoord * 0.5 + 0.5;
+    
     // Input color
-    vec3 color = texture2D(u_InputSampler, gl_FragCoord.xy / u_Resolution).rgb;
+    vec3 color = texture2D(u_InputSampler, uv).rgb;
 
     // Add bloom
     //color += texture2D(u_BloomSampler, uv).rgb;
