@@ -1,5 +1,3 @@
-#version 330 core
-
 // Based on writing by Jamie Wong
 // https://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions
 // and Inigo Quilez
@@ -84,7 +82,7 @@ void main() {
     vec3 normal = normal(pos);
     float ndotl = max(dot(-normal, vec3(0., -1., 0)), 0.);
 
-    vec3 finalColor = vec3(ndotl);
+    vec3 finalColor = vec3(ndotl) * 1.2;
     vec2 uv = FragCoord * 0.5 + 0.5;
     vec3 previousFrameColor = texture2D(u_FeedbackSampler, uv).rgb;
     FragColor = vec4(mix(finalColor, previousFrameColor, r_MotionBlur), 1.);

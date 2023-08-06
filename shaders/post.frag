@@ -1,11 +1,10 @@
-#version 330 core
-
 out vec4 FragColor;
 
 in vec2 FragCoord;
 
 uniform sampler2D u_InputSampler;
 uniform sampler2D u_NoiseSampler;
+uniform sampler2D u_BloomSampler;
 uniform int u_NoiseSize;
 uniform float u_RocketRow;
 uniform vec2 u_Resolution;
@@ -41,6 +40,9 @@ void main() {
         radialSum(pixel * 2.).g,
         radialSum(pixel * 1.).b
     ) / BLUR_SAMPLES;
+
+    // Add bloom
+    color += texture2D(u_BloomSampler, FragCoord * 0.5 + 0.5).rgb;
 
     // Tone mapping
     color = acesApprox(color);

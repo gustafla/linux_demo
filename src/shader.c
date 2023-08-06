@@ -1,4 +1,5 @@
 #include "shader.h"
+#include "config.h"
 #include "filesystem.h"
 #include "uniforms.h"
 #include <GL/gl.h>
@@ -8,6 +9,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define MAX_SRC_FRAGMENTS 16
 
 #ifdef DEBUG
 static size_t read_file(const char *filename, char **dst) {
@@ -68,11 +71,28 @@ static GLenum type_to_enum(const char *shader_type) {
     return GL_INVALID_ENUM;
 }
 
-shader_t compile_shader(const char *shader_src, const char *shader_type) {
+shader_t compile_shader(const char *shader_src, const char *shader_type,
+                        const shader_define_t *defines, size_t n_defs) {
+    static const char *src[MAX_SRC_FRAGMENTS];
+
     shader_t ret = {0};
     ret.uniforms = parse_uniforms(shader_src, &ret.uniform_count);
     ret.handle = glCreateShader(type_to_enum(shader_type));
-    glShaderSource(ret.handle, 1, &shader_src, NULL);
+
+    size_t i = 0;
+    src[i++] = GLSL_VERSION;
+    if (defines) {
+        for (size_t j = 0; j < n_defs && i + 5 < MAX_SRC_FRAGMENTS; j++) {
+            src[i++] = "#define ";
+            src[i++] = defines[j].name;
+            src[i++] = " ";
+            src[i++] = defines[j].value;
+            src[i++] = "\n";
+        }
+    }
+    src[i++] = shader_src;
+
+    glShaderSource(ret.handle, i, src, NULL);
     glCompileShader(ret.handle);
 
     GLint status;
@@ -92,7 +112,8 @@ shader_t compile_shader(const char *shader_src, const char *shader_type) {
     return ret;
 }
 
-shader_t compile_shader_file(const char *filename) {
+shader_t compile_shader_file(const char *filename,
+                             const shader_define_t *defines, size_t n_defs) {
     char *shader_src = NULL;
 
     if (read_file(filename, &shader_src) == 0) {
@@ -107,7 +128,7 @@ shader_t compile_shader_file(const char *filename) {
         }
     } while (ret);
 
-    shader_t shader = compile_shader(shader_src, shader_type);
+    shader_t shader = compile_shader(shader_src, shader_type, defines, n_defs);
 #ifdef DEBUG
     free(shader_src);
 #endif

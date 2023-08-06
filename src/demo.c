@@ -9,13 +9,12 @@
 #include <sync.h>
 
 #define NOISE_SIZE 256
-#define FBS 3
+#define FBS 4
 
 #define GET_VALUE(track_name)                                                  \
     sync_get_val(sync_get_track(rocket, track_name), rocket_row)
 
 static const char *vertex_shader_src =
-    "#version 330 core\n"
     "out vec2 FragCoord;\n"
     "void main() {\n"
     "    vec2 c = vec2(-1, 1);\n"
@@ -27,6 +26,8 @@ static const char *vertex_shader_src =
 typedef struct {
     GLuint framebuffer;
     GLuint texture;
+    GLsizei width;
+    GLsizei height;
 } fbo_t;
 
 typedef struct {
@@ -41,13 +42,17 @@ typedef struct {
     GLuint vao;
     program_t effect_program;
     program_t post_program;
+    program_t bloom_pre_program;
+    program_t bloom_x_program;
+    program_t bloom_y_program;
+    int programs_ok;
     GLuint noise_texture;
     fbo_t fbs[FBS];
     size_t firstpass_fb_idx;
 } demo_t;
 
 static fbo_t create_framebuffer(GLsizei width, GLsizei height) {
-    fbo_t fbo = (fbo_t){0};
+    fbo_t fbo = {0};
 
     glGenFramebuffers(1, &fbo.framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo.framebuffer);
@@ -67,41 +72,89 @@ static fbo_t create_framebuffer(GLsizei width, GLsizei height) {
         return (fbo_t){0};
     }
 
+    fbo.width = width;
+    fbo.height = height;
+
     return fbo;
 }
 
-static void replace_program(program_t *old, program_t new) {
-#ifndef DEBUG
+static int replace_program(program_t *old, program_t new) {
     if (!new.handle) {
+#ifndef DEBUG
         abort();
-    }
 #endif
+        return 0;
+    }
     if (old->handle) {
         program_deinit(old);
     }
     *old = new;
+
+    return 1;
 }
 
 void demo_reload(demo_t *demo) {
-    shader_t vertex_shader = compile_shader(vertex_shader_src, "vert");
-    shader_t fragment_shader = compile_shader_file("shaders/shader.frag");
+    demo->programs_ok = 1;
 
-    replace_program(
+    shader_t vertex_shader = compile_shader(vertex_shader_src, "vert", NULL, 0);
+    shader_t fragment_shader =
+        compile_shader_file("shaders/shader.frag", NULL, 0);
+
+    demo->programs_ok &= replace_program(
         &demo->effect_program,
         link_program((shader_t[]){vertex_shader, fragment_shader}, 2));
 
-    shader_t post_shader = compile_shader_file("shaders/post.frag");
+    shader_t post_shader = compile_shader_file("shaders/post.frag", NULL, 0);
 
-    replace_program(&demo->post_program, link_program(
-                                             (shader_t[]){
-                                                 vertex_shader,
-                                                 post_shader,
-                                             },
-                                             2));
+    demo->programs_ok &=
+        replace_program(&demo->post_program, link_program(
+                                                 (shader_t[]){
+                                                     vertex_shader,
+                                                     post_shader,
+                                                 },
+                                                 2));
+
+    shader_t bloom_pre_shader =
+        compile_shader_file("shaders/bloom_pre.frag", NULL, 0);
+
+    demo->programs_ok &=
+        replace_program(&demo->bloom_pre_program, link_program(
+                                                      (shader_t[]){
+                                                          vertex_shader,
+                                                          bloom_pre_shader,
+                                                      },
+                                                      2));
+
+    shader_t bloom_x_shader =
+        compile_shader_file("shaders/blur.frag",
+                            (shader_define_t[]){(shader_define_t){
+                                .name = "HORIZONTAL", .value = "1"}},
+                            1);
+
+    demo->programs_ok &=
+        replace_program(&demo->bloom_x_program, link_program(
+                                                    (shader_t[]){
+                                                        vertex_shader,
+                                                        bloom_x_shader,
+                                                    },
+                                                    2));
+
+    shader_t bloom_y_shader = compile_shader_file("shaders/blur.frag", NULL, 0);
+
+    demo->programs_ok &=
+        replace_program(&demo->bloom_y_program, link_program(
+                                                    (shader_t[]){
+                                                        vertex_shader,
+                                                        bloom_y_shader,
+                                                    },
+                                                    2));
 
     shader_deinit(&vertex_shader);
     shader_deinit(&fragment_shader);
     shader_deinit(&post_shader);
+    shader_deinit(&bloom_pre_shader);
+    shader_deinit(&bloom_x_shader);
+    shader_deinit(&bloom_y_shader);
     demo->reload_time = SDL_GetTicks64();
 }
 
@@ -169,8 +222,8 @@ static char *rocket_component(const char *name, size_t name_len, char c) {
     return components;
 }
 
-static void set_rocket_uniforms(program_t *program, struct sync_device *rocket,
-                                double rocket_row) {
+static void set_rocket_uniforms(const program_t *program,
+                                struct sync_device *rocket, double rocket_row) {
     for (size_t i = 0; i < program->uniform_count; i++) {
         uniform_t *ufm = program->uniforms + i;
 
@@ -212,11 +265,34 @@ static void set_rocket_uniforms(program_t *program, struct sync_device *rocket,
     }
 }
 
-void set_noise_texture(demo_t *demo, GLuint program, int texture) {
-    glActiveTexture(GL_TEXTURE0 + texture);
-    glBindTexture(GL_TEXTURE_2D, demo->noise_texture);
-    glUniform1i(glGetUniformLocation(program, "u_NoiseSampler"), texture);
-    glUniform1i(glGetUniformLocation(program, "u_NoiseSize"), NOISE_SIZE);
+static void render_pass(const demo_t *demo, size_t draw_fb_idx,
+                        const program_t *program, struct sync_device *rocket,
+                        double rocket_row, const GLuint *textures,
+                        const char **sampler_ufm_names, size_t n_textures) {
+    const fbo_t *const draw_fbo = &demo->fbs[draw_fb_idx];
+
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, draw_fbo->framebuffer);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glViewport(0, 0, draw_fbo->width, draw_fbo->height);
+    glUseProgram(program->handle);
+    set_rocket_uniforms(program, rocket, rocket_row);
+    glUniform1f(glGetUniformLocation(program->handle, "u_RocketRow"),
+                rocket_row);
+    glUniform2f(glGetUniformLocation(program->handle, "u_Resolution"),
+                draw_fbo->width, draw_fbo->height);
+    glUniform1i(glGetUniformLocation(program->handle, "u_NoiseSize"),
+                NOISE_SIZE);
+
+    for (size_t i = 0; i < n_textures; i++) {
+        glActiveTexture(GL_TEXTURE0 + i);
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
+        glUniform1i(glGetUniformLocation(program->handle, sampler_ufm_names[i]),
+                    i);
+    }
+
+    glBindVertexArray(demo->vao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
 }
 
 void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
@@ -226,7 +302,7 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
 
 #ifdef DEBUG
     // Early return if shaders are currently unusable
-    if (!demo->effect_program.handle || !demo->post_program.handle) {
+    if (!demo->programs_ok) {
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
         glClearColor(0.3, 0., 0., 1.);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -248,54 +324,40 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
 
     // Effect shader ----------------------------------------------------------
 
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, demo->fbs[cur_fb_idx].framebuffer);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glViewport(0, 0, demo->width, demo->height);
+    render_pass(demo, cur_fb_idx, &demo->effect_program, rocket, rocket_row,
+                (GLuint[]){demo->fbs[alt_fb_idx].texture, demo->noise_texture},
+                (const char *[]){"u_FeedbackSampler", "u_NoiseSampler"}, 2);
 
-    glUseProgram(demo->effect_program.handle);
-    set_rocket_uniforms(&demo->effect_program, rocket, rocket_row);
-    glUniform1f(
-        glGetUniformLocation(demo->effect_program.handle, "u_RocketRow"),
-        rocket_row);
-    glUniform2f(
-        glGetUniformLocation(demo->effect_program.handle, "u_Resolution"),
-        demo->width, demo->height);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, demo->fbs[alt_fb_idx].texture);
-    glUniform1i(
-        glGetUniformLocation(demo->post_program.handle, "u_FeedbackSampler"),
-        0);
-    set_noise_texture(demo, demo->effect_program.handle, 1);
+    // Bloom pre --------------------------------------------------------------
 
-    glBindVertexArray(demo->vao);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glBindVertexArray(0);
+    render_pass(demo, 2, &demo->bloom_pre_program, rocket, rocket_row,
+                (GLuint[]){demo->fbs[cur_fb_idx].texture},
+                (const char *[]){"u_InputSampler"}, 1);
+
+    // Bloom x ----------------------------------------------------------------
+
+    render_pass(demo, 3, &demo->bloom_x_program, rocket, rocket_row,
+                (GLuint[]){demo->fbs[2].texture},
+                (const char *[]){"u_InputSampler"}, 1);
+
+    // Bloom y ----------------------------------------------------------------
+
+    render_pass(demo, 2, &demo->bloom_y_program, rocket, rocket_row,
+                (GLuint[]){demo->fbs[3].texture},
+                (const char *[]){"u_InputSampler"}, 1);
 
     // Post shader ------------------------------------------------------------
 
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, demo->fbs[2].framebuffer);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glViewport(0, 0, demo->width, demo->height);
-
-    glUseProgram(demo->post_program.handle);
-    set_rocket_uniforms(&demo->post_program, rocket, rocket_row);
-    glUniform1f(glGetUniformLocation(demo->post_program.handle, "u_RocketRow"),
-                rocket_row);
-    glUniform2f(glGetUniformLocation(demo->post_program.handle, "u_Resolution"),
-                demo->width, demo->height);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, demo->fbs[cur_fb_idx].texture);
-    glUniform1i(
-        glGetUniformLocation(demo->post_program.handle, "u_InputSampler"), 0);
-    set_noise_texture(demo, demo->post_program.handle, 1);
-
-    glBindVertexArray(demo->vao);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glBindVertexArray(0);
+    render_pass(
+        demo, 3, &demo->post_program, rocket, rocket_row,
+        (GLuint[]){demo->fbs[cur_fb_idx].texture, demo->fbs[2].texture,
+                   demo->noise_texture},
+        (const char *[]){"u_InputSampler", "u_BloomSampler", "u_NoiseSampler"},
+        3);
 
     // Output blit ------------------------------------------------------------
 
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, demo->fbs[2].framebuffer);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, demo->fbs[3].framebuffer);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT);
 #ifdef DEBUG
