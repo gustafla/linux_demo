@@ -25,15 +25,13 @@ static size_t read_file(const char *filename, char **dst) {
         goto cleanup;
     }
 
-    *dst = (char *)malloc(len + 1);
+    *dst = (char *)malloc(len);
     fseek(file, 0, SEEK_SET);
 
     size_t read = fread(*dst, sizeof(char), len, file);
     fclose(file);
     if (read != len)
         goto cleanup;
-
-    (*dst)[len] = '\0';
 
     return len;
 
@@ -71,9 +69,21 @@ static GLenum type_to_enum(const char *shader_type) {
     return GL_INVALID_ENUM;
 }
 
-shader_t compile_shader(const char *shader_src, const char *shader_type,
-                        const shader_define_t *defines, size_t n_defs) {
+shader_t compile_shader(const char *shader_src, size_t shader_src_len,
+                        const char *shader_type, const shader_define_t *defines,
+                        size_t n_defs) {
     static const char *src[MAX_SRC_FRAGMENTS];
+    static GLint src_lens[MAX_SRC_FRAGMENTS];
+
+    // Set src_lens to all 1-bits because that will cause them to be negative.
+    //
+    // glShaderSource documentation:
+    //
+    // Each element in the length array may contain the length of the
+    // corresponding string (the null character is not counted as part
+    // of the string length) or a value less than 0 to indicate that
+    // the string is null terminated.
+    memset(src_lens, ~0, MAX_SRC_FRAGMENTS * sizeof(GLint));
 
     shader_t ret = {0};
     ret.uniforms = parse_uniforms(shader_src, &ret.uniform_count);
@@ -90,9 +100,10 @@ shader_t compile_shader(const char *shader_src, const char *shader_type,
             src[i++] = "\n";
         }
     }
+    src_lens[i] = shader_src_len;
     src[i++] = shader_src;
 
-    glShaderSource(ret.handle, i, src, NULL);
+    glShaderSource(ret.handle, i, src, src_lens);
     glCompileShader(ret.handle);
 
     GLint status;
@@ -115,8 +126,8 @@ shader_t compile_shader(const char *shader_src, const char *shader_type,
 shader_t compile_shader_file(const char *filename,
                              const shader_define_t *defines, size_t n_defs) {
     char *shader_src = NULL;
-
-    if (read_file(filename, &shader_src) == 0) {
+    size_t shader_src_len = read_file(filename, &shader_src);
+    if (shader_src_len == 0) {
         return (shader_t){0};
     }
 
@@ -128,7 +139,8 @@ shader_t compile_shader_file(const char *filename,
         }
     } while (ret);
 
-    shader_t shader = compile_shader(shader_src, shader_type, defines, n_defs);
+    shader_t shader = compile_shader(shader_src, shader_src_len, shader_type,
+                                     defines, n_defs);
 #ifdef DEBUG
     free(shader_src);
 #endif

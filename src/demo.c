@@ -33,8 +33,6 @@ typedef struct {
 } fbo_t;
 
 typedef struct {
-    int width;
-    int height;
     double aspect_ratio;
     int x0;
     int y0;
@@ -99,7 +97,8 @@ static int replace_program(program_t *old, program_t new) {
 void demo_reload(demo_t *demo) {
     demo->programs_ok = 1;
 
-    shader_t vertex_shader = compile_shader(vertex_shader_src, "vert", NULL, 0);
+    shader_t vertex_shader = compile_shader(
+        vertex_shader_src, strlen(vertex_shader_src), "vert", NULL, 0);
     shader_t fragment_shader =
         compile_shader_file("shaders/shader.frag", NULL, 0);
 
@@ -185,8 +184,6 @@ demo_t *demo_init(int width, int height) {
         return NULL;
     }
 
-    demo->width = width;
-    demo->height = height;
     demo->aspect_ratio = (double)width / (double)height;
     demo_resize(demo, width, height);
 
@@ -391,13 +388,12 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     // Animate shader reload to show feedback in debug builds
     float a = fmin((SDL_GetTicks64() - demo->reload_time) / 100.f, 1.);
     const GLint x0 = demo->x0 * a, x1 = demo->x1 * a, y0 = demo->y0 * a,
-                y1 = demo->y1 * a, w = demo->width, h = demo->height;
+                y1 = demo->y1 * a;
 #else
-    const GLint x0 = demo->x0, x1 = demo->x1, y0 = demo->y0, y1 = demo->y1,
-                w = demo->width, h = demo->height;
+    const GLint x0 = demo->x0, x1 = demo->x1, y0 = demo->y0, y1 = demo->y1;
 #endif
-    glBlitFramebuffer(0, 0, w, h, x0, y0, x1, y1, GL_COLOR_BUFFER_BIT,
-                      GL_LINEAR);
+    glBlitFramebuffer(0, 0, demo->fbs[2].width, demo->fbs[2].height, x0, y0, x1,
+                      y1, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
     // Switch fb to keep render results in memory for feedback effects
     demo->firstpass_fb_idx = alt_fb_idx;
