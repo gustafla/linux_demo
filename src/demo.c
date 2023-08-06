@@ -9,6 +9,7 @@
 #include <sync.h>
 
 #define NOISE_SIZE 256
+#define FBS 3
 
 #define GET_VALUE(track_name)                                                  \
     sync_get_val(sync_get_track(rocket, track_name), rocket_row)
@@ -25,7 +26,7 @@ static const char *vertex_shader_src =
 
 typedef struct {
     GLuint framebuffer;
-    GLuint framebuffer_texture;
+    GLuint texture;
 } fbo_t;
 
 typedef struct {
@@ -41,21 +42,18 @@ typedef struct {
     program_t effect_program;
     program_t post_program;
     GLuint noise_texture;
-    fbo_t *post_fb;
-    fbo_t *output_fb;
+    fbo_t fbs[FBS];
+    size_t firstpass_fb_idx;
 } demo_t;
 
-static fbo_t *create_framebuffer(GLsizei width, GLsizei height) {
-    fbo_t *fbo = malloc(sizeof(fbo_t));
-    if (!fbo) {
-        return NULL;
-    }
+static fbo_t create_framebuffer(GLsizei width, GLsizei height) {
+    fbo_t fbo = (fbo_t){0};
 
-    glGenFramebuffers(1, &fbo->framebuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo->framebuffer);
+    glGenFramebuffers(1, &fbo.framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo.framebuffer);
     glActiveTexture(GL_TEXTURE0);
-    glGenTextures(1, &fbo->framebuffer_texture);
-    glBindTexture(GL_TEXTURE_2D, fbo->framebuffer_texture);
+    glGenTextures(1, &fbo.texture);
+    glBindTexture(GL_TEXTURE_2D, fbo.texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA,
                  GL_HALF_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -63,10 +61,10 @@ static fbo_t *create_framebuffer(GLsizei width, GLsizei height) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                           fbo->framebuffer_texture, 0);
+                           fbo.texture, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         SDL_Log("FBO not complete\n");
-        return NULL;
+        return (fbo_t){0};
     }
 
     return fbo;
@@ -143,8 +141,12 @@ demo_t *demo_init(int width, int height) {
 
     demo_reload(demo);
 
-    demo->post_fb = create_framebuffer(width, height);
-    demo->output_fb = create_framebuffer(width, height);
+    for (size_t i = 0; i < FBS; i++) {
+        demo->fbs[i] = create_framebuffer(width, height);
+        if (demo->fbs[i].framebuffer == 0) {
+            return NULL;
+        }
+    }
 
     glActiveTexture(GL_TEXTURE0);
     glGenTextures(1, &demo->noise_texture);
@@ -219,6 +221,8 @@ void set_noise_texture(demo_t *demo, GLuint program, int texture) {
 
 void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     static unsigned char noise[NOISE_SIZE * NOISE_SIZE * 4];
+    const size_t cur_fb_idx = demo->firstpass_fb_idx;
+    const size_t alt_fb_idx = cur_fb_idx ? 0 : 1;
 
 #ifdef DEBUG
     // Early return if shaders are currently unusable
@@ -244,7 +248,7 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
 
     // Effect shader ----------------------------------------------------------
 
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, demo->post_fb->framebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, demo->fbs[cur_fb_idx].framebuffer);
     glClear(GL_COLOR_BUFFER_BIT);
     glViewport(0, 0, demo->width, demo->height);
 
@@ -256,7 +260,12 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glUniform2f(
         glGetUniformLocation(demo->effect_program.handle, "u_Resolution"),
         demo->width, demo->height);
-    set_noise_texture(demo, demo->effect_program.handle, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, demo->fbs[alt_fb_idx].texture);
+    glUniform1i(
+        glGetUniformLocation(demo->post_program.handle, "u_FeedbackSampler"),
+        0);
+    set_noise_texture(demo, demo->effect_program.handle, 1);
 
     glBindVertexArray(demo->vao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -264,7 +273,7 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
 
     // Post shader ------------------------------------------------------------
 
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, demo->output_fb->framebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, demo->fbs[2].framebuffer);
     glClear(GL_COLOR_BUFFER_BIT);
     glViewport(0, 0, demo->width, demo->height);
 
@@ -275,7 +284,7 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glUniform2f(glGetUniformLocation(demo->post_program.handle, "u_Resolution"),
                 demo->width, demo->height);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, demo->post_fb->framebuffer_texture);
+    glBindTexture(GL_TEXTURE_2D, demo->fbs[cur_fb_idx].texture);
     glUniform1i(
         glGetUniformLocation(demo->post_program.handle, "u_InputSampler"), 0);
     set_noise_texture(demo, demo->post_program.handle, 1);
@@ -286,7 +295,7 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
 
     // Output blit ------------------------------------------------------------
 
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, demo->output_fb->framebuffer);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, demo->fbs[2].framebuffer);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT);
 #ifdef DEBUG
@@ -300,6 +309,9 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
 #endif
     glBlitFramebuffer(0, 0, w, h, x0, y0, x1, y1, GL_COLOR_BUFFER_BIT,
                       GL_LINEAR);
+
+    // Switch fb to keep render results in memory for feedback effects
+    demo->firstpass_fb_idx = alt_fb_idx;
 }
 
 void demo_deinit(demo_t *demo) {

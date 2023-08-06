@@ -14,6 +14,9 @@ uniform vec2 u_Resolution;
 uniform float r_CamFov;
 uniform vec3 r_CamPos;
 uniform vec3 r_CamTarget;
+uniform float r_MotionBlur;
+
+uniform sampler2D u_FeedbackSampler;
 
 #define PI 3.14159265
 #define EPSILON 0.001
@@ -33,11 +36,6 @@ mat3 viewMatrix() {
 vec3 cameraRay() {
     float c = tan((90. - r_CamFov / 2.) * (PI / 180.));
     return normalize(vec3(FragCoord * vec2(aspectRatio(), 1.), c));
-}
-
-vec3 rotate(vec3 v, vec4 q) {
-    vec3 t = cross(q.xyz, v) + q.w * v;
-    return v + 2.*cross(q.xyz, t);
 }
 
 float sdSphere( vec3 p, float s ) {
@@ -85,7 +83,9 @@ void main() {
 
     vec3 normal = normal(pos);
     float ndotl = max(dot(-normal, vec3(0., -1., 0)), 0.);
-    
-    FragColor = vec4(normal * ndotl, 1.);
-    FragColor = vec4(vec3(ndotl), 1.);
+
+    vec3 finalColor = vec3(ndotl);
+    vec2 uv = FragCoord * 0.5 + 0.5;
+    vec3 previousFrameColor = texture2D(u_FeedbackSampler, uv).rgb;
+    FragColor = vec4(mix(finalColor, previousFrameColor, r_MotionBlur), 1.);
 }
