@@ -78,8 +78,8 @@ tracks, and before you set reasonable values to them, nothing will render.
 
 ![Camera controls in Rocket](doc/rocketcam.png)
 
-A good starting point is to set CamFov to some value between 45 and 90,
-CamPos.z to 3, leave CamTarget as all zeroes (the origin).
+A good starting point is to set Fov to some value between 45 and 90,
+Pos.z to 3, leave Target as all zeroes (the origin).
 Also try and see what other rocket tracks do.
 
 ## Releasing

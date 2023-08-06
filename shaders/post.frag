@@ -8,7 +8,7 @@ uniform sampler2D u_BloomSampler;
 uniform int u_NoiseSize;
 uniform float u_RocketRow;
 uniform vec2 u_Resolution;
-uniform float r_PostAberration;
+uniform float r_Post_Aberration;
 
 #define BLUR_SAMPLES 8
 
@@ -25,7 +25,7 @@ vec3 acesApprox(vec3 v) {
 vec3 radialSum(vec2 r) {
     vec3 color = vec3(0.);
     for (int i = 0; i < BLUR_SAMPLES; i++) {
-        vec2 d = (r * float(i) * r_PostAberration) / BLUR_SAMPLES;
+        vec2 d = (r * float(i) * r_Post_Aberration) / BLUR_SAMPLES;
         vec2 uv = FragCoord * (0.5 - d) + 0.5;
         color += texture2D(u_InputSampler, uv).rgb;
     }

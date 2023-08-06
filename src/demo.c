@@ -6,6 +6,7 @@
 #include <SDL2/SDL.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sync.h>
 
 #define NOISE_SIZE 256
@@ -221,14 +222,29 @@ demo_t *demo_init(int width, int height) {
     return demo;
 }
 
-static char *rocket_component(const char *name, size_t name_len, char c) {
-    static char components[UFM_NAME_MAX + 2];
-    assert(name_len < UFM_NAME_MAX);
-    memcpy(components, name, name_len);
-    components[name_len] = '.';
-    components[name_len + 1] = c;
-    components[name_len + 2] = 0;
-    return components;
+static const char *rocket_track_name(uniform_t *ufm, char c) {
+    static char trackname[UFM_NAME_MAX];
+
+    // Adjust for r_ -prefix
+    const char *name = ufm->name + 2;
+    size_t name_len = ufm->name_len - 2;
+
+    memcpy(trackname, name, name_len + 1);
+
+    // Replace second underscore with colon (tab) when possible
+    char *underscore = memchr(trackname, '_', name_len);
+    if (underscore) {
+        *underscore = ':';
+    }
+
+    // Add component suffix when required
+    if (c) {
+        trackname[name_len] = '.';
+        trackname[name_len + 1] = c;
+        trackname[name_len + 2] = 0;
+    }
+
+    return trackname;
 }
 
 static void set_rocket_uniforms(const program_t *program,
@@ -236,38 +252,33 @@ static void set_rocket_uniforms(const program_t *program,
     for (size_t i = 0; i < program->uniform_count; i++) {
         uniform_t *ufm = program->uniforms + i;
 
-        // Check and adjust for r_ -prefix
+        // Check for r_ -prefix
         if (ufm->name_len < 3 || ufm->name[0] != 'r' || ufm->name[1] != '_') {
             continue;
         }
-        const char *name = ufm->name + 2;
-        size_t name_len = ufm->name_len - 2;
 
         GLuint location = glGetUniformLocation(program->handle, ufm->name);
         switch (ufm->type) {
         case UFM_FLOAT:
-            glUniform1f(location, GET_VALUE(name));
+            glUniform1f(location, GET_VALUE(rocket_track_name(ufm, 0)));
             break;
         case UFM_VEC2:
-            glUniform2f(location,
-                        GET_VALUE(rocket_component(name, name_len, 'x')),
-                        GET_VALUE(rocket_component(name, name_len, 'y')));
+            glUniform2f(location, GET_VALUE(rocket_track_name(ufm, 'x')),
+                        GET_VALUE(rocket_track_name(ufm, 'y')));
             break;
         case UFM_VEC3:
-            glUniform3f(location,
-                        GET_VALUE(rocket_component(name, name_len, 'x')),
-                        GET_VALUE(rocket_component(name, name_len, 'y')),
-                        GET_VALUE(rocket_component(name, name_len, 'z')));
+            glUniform3f(location, GET_VALUE(rocket_track_name(ufm, 'x')),
+                        GET_VALUE(rocket_track_name(ufm, 'y')),
+                        GET_VALUE(rocket_track_name(ufm, 'z')));
             break;
         case UFM_VEC4:
-            glUniform4f(location,
-                        GET_VALUE(rocket_component(name, name_len, 'x')),
-                        GET_VALUE(rocket_component(name, name_len, 'y')),
-                        GET_VALUE(rocket_component(name, name_len, 'z')),
-                        GET_VALUE(rocket_component(name, name_len, 'w')));
+            glUniform4f(location, GET_VALUE(rocket_track_name(ufm, 'x')),
+                        GET_VALUE(rocket_track_name(ufm, 'y')),
+                        GET_VALUE(rocket_track_name(ufm, 'z')),
+                        GET_VALUE(rocket_track_name(ufm, 'w')));
             break;
         case UFM_INT:
-            glUniform1i(location, (GLint)GET_VALUE(name));
+            glUniform1i(location, (GLint)GET_VALUE(rocket_track_name(ufm, 0)));
             break;
         case UFM_UNKNOWN:;
         }

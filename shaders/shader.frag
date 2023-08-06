@@ -9,9 +9,9 @@ in vec2 FragCoord;
 
 uniform float u_RocketRow;
 uniform vec2 u_Resolution;
-uniform float r_CamFov;
-uniform vec3 r_CamPos;
-uniform vec3 r_CamTarget;
+uniform float r_Cam_Fov;
+uniform vec3 r_Cam_Pos;
+uniform vec3 r_Cam_Target;
 uniform float r_MotionBlur;
 
 uniform sampler2D u_FeedbackSampler;
@@ -25,14 +25,14 @@ float aspectRatio() {
 }
 
 mat3 viewMatrix() {
-	vec3 f = normalize(r_CamTarget - r_CamPos);
+	vec3 f = normalize(r_Cam_Target - r_Cam_Pos);
 	vec3 s = normalize(cross(f, vec3(0., 1., 0.)));
 	vec3 u = cross(s, f);
     return mat3(s, u, f);
 }
 
 vec3 cameraRay() {
-    float c = tan((90. - r_CamFov / 2.) * (PI / 180.));
+    float c = tan((90. - r_Cam_Fov / 2.) * (PI / 180.));
     return normalize(vec3(FragCoord * vec2(aspectRatio(), 1.), c));
 }
 
@@ -76,8 +76,8 @@ float march(vec3 o, vec3 d) {
 void main() {
     vec3 ray = viewMatrix() * cameraRay(); 
 
-    float t = march(r_CamPos, ray);
-    vec3 pos = r_CamPos + ray * t;
+    float t = march(r_Cam_Pos, ray);
+    vec3 pos = r_Cam_Pos + ray * t;
 
     vec3 normal = normal(pos);
     float ndotl = max(dot(-normal, vec3(0., -1., 0)), 0.);
