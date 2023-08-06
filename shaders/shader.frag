@@ -50,8 +50,10 @@ float sdTorus(vec3 p, vec2 t) {
 }
 
 float sdf(vec3 p) {
-    return sdTorus(p, vec2(1., 0.3));
-    //return sdSphere(p, 0.5);
+    return min(
+        sdTorus(p, vec2(1., 0.3)),
+        sdSphere(p - vec3(1, 0, 1), 0.5)
+    );
 }
 
 vec3 normal(vec3 p) {

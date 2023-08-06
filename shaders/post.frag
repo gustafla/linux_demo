@@ -27,7 +27,7 @@ vec3 radialSum(vec2 r) {
     vec3 color = vec3(0.);
     for (int i = 0; i < BLUR_SAMPLES; i++) {
         vec2 d = (r * float(i) * r_PostAberration) / BLUR_SAMPLES;
-        vec2 uv = FragCoord * (0.5 + d) + 0.5;
+        vec2 uv = FragCoord * (0.5 - d) + 0.5;
         color += texture2D(u_InputSampler, uv).rgb;
     }
     return color;
@@ -37,9 +37,9 @@ void main() {
     // Input color with RGB aberration
     vec2 pixel = 1. / u_Resolution;
     vec3 color = vec3(
-        radialSum(pixel).r,
+        radialSum(pixel * 3.).r,
         radialSum(pixel * 2.).g,
-        radialSum(pixel * 3.).b
+        radialSum(pixel * 1.).b
     ) / BLUR_SAMPLES;
 
     // Tone mapping
