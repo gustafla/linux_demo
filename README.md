@@ -62,6 +62,18 @@ This will use all CPU cores you have available.
 5. Hack on shaders! Uniforms prefixed with `r_` will automatically show up in rocket.
 6. Reload shaders and uniforms by pressing R. No `make` or restart needed.
 
+## Camera control
+
+The default [`shaders/shader.frag`](shaders/shader.frag) includes a "look at"
+-style camera for SDF raymarching. It's variables will show up in Rocket as
+tracks, and before you set reasonable values to them, nothing will render.
+
+![Camera controls in Rocket](doc/rocketcam.png)
+
+A good starting point is to set CamFov to some value between 45 and 90,
+CamPos.z to 3, leave CamTarget as all zeroes (the origin).
+Also try and see what other rocket tracks do.
+
 ### What if my music track is not in .ogg vorbis format?
 
 It can be encoded with the following command:
