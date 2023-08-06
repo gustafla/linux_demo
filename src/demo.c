@@ -9,7 +9,8 @@
 #include <sync.h>
 
 #define NOISE_SIZE 256
-#define FBS 4
+#define FBS 3
+#define QUARTER_FBS 2
 
 #define GET_VALUE(track_name)                                                  \
     sync_get_val(sync_get_track(rocket, track_name), rocket_row)
@@ -48,10 +49,11 @@ typedef struct {
     int programs_ok;
     GLuint noise_texture;
     fbo_t fbs[FBS];
+    fbo_t quarter_fbs[QUARTER_FBS];
     size_t firstpass_fb_idx;
 } demo_t;
 
-static fbo_t create_framebuffer(GLsizei width, GLsizei height) {
+static fbo_t create_framebuffer(GLsizei width, GLsizei height, GLint filter) {
     fbo_t fbo = {0};
 
     glGenFramebuffers(1, &fbo.framebuffer);
@@ -61,8 +63,8 @@ static fbo_t create_framebuffer(GLsizei width, GLsizei height) {
     glBindTexture(GL_TEXTURE_2D, fbo.texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA,
                  GL_HALF_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
@@ -195,8 +197,15 @@ demo_t *demo_init(int width, int height) {
     demo_reload(demo);
 
     for (size_t i = 0; i < FBS; i++) {
-        demo->fbs[i] = create_framebuffer(width, height);
+        demo->fbs[i] = create_framebuffer(width, height, GL_NEAREST);
         if (demo->fbs[i].framebuffer == 0) {
+            return NULL;
+        }
+    }
+    for (size_t i = 0; i < QUARTER_FBS; i++) {
+        demo->quarter_fbs[i] =
+            create_framebuffer(width / 2, height / 2, GL_LINEAR);
+        if (demo->quarter_fbs[i].framebuffer == 0) {
             return NULL;
         }
     }
@@ -265,21 +274,20 @@ static void set_rocket_uniforms(const program_t *program,
     }
 }
 
-static void render_pass(const demo_t *demo, size_t draw_fb_idx,
+static void render_pass(const demo_t *demo, const fbo_t *draw_fb,
                         const program_t *program, struct sync_device *rocket,
                         double rocket_row, const GLuint *textures,
                         const char **sampler_ufm_names, size_t n_textures) {
-    const fbo_t *const draw_fbo = &demo->fbs[draw_fb_idx];
 
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, draw_fbo->framebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, draw_fb->framebuffer);
     glClear(GL_COLOR_BUFFER_BIT);
-    glViewport(0, 0, draw_fbo->width, draw_fbo->height);
+    glViewport(0, 0, draw_fb->width, draw_fb->height);
     glUseProgram(program->handle);
     set_rocket_uniforms(program, rocket, rocket_row);
     glUniform1f(glGetUniformLocation(program->handle, "u_RocketRow"),
                 rocket_row);
     glUniform2f(glGetUniformLocation(program->handle, "u_Resolution"),
-                draw_fbo->width, draw_fbo->height);
+                draw_fb->width, draw_fb->height);
     glUniform1i(glGetUniformLocation(program->handle, "u_NoiseSize"),
                 NOISE_SIZE);
 
@@ -312,7 +320,8 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
 
     glClearColor(0., 0., 0., 1.);
 
-    // MAKE SOME NOISE !!!! WOOO ----------------------------------------------
+    // MAKE SOME NOISE !!!! WOOO
+    // ------------------------------------------------------------------------
 
     glActiveTexture(GL_TEXTURE0);
     for (GLsizei i = 0; i < NOISE_SIZE * NOISE_SIZE * 4; i++) {
@@ -322,42 +331,49 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, NOISE_SIZE, NOISE_SIZE, GL_RGBA,
                     GL_UNSIGNED_BYTE, noise);
 
-    // Effect shader ----------------------------------------------------------
+    // Effect shader
+    // ------------------------------------------------------------------------
 
-    render_pass(demo, cur_fb_idx, &demo->effect_program, rocket, rocket_row,
+    render_pass(demo, &demo->fbs[cur_fb_idx], &demo->effect_program, rocket,
+                rocket_row,
                 (GLuint[]){demo->fbs[alt_fb_idx].texture, demo->noise_texture},
                 (const char *[]){"u_FeedbackSampler", "u_NoiseSampler"}, 2);
 
-    // Bloom pre --------------------------------------------------------------
+    // Bloom pre
+    // ------------------------------------------------------------------------
 
-    render_pass(demo, 2, &demo->bloom_pre_program, rocket, rocket_row,
-                (GLuint[]){demo->fbs[cur_fb_idx].texture},
+    render_pass(demo, &demo->quarter_fbs[0], &demo->bloom_pre_program, rocket,
+                rocket_row, (GLuint[]){demo->fbs[cur_fb_idx].texture},
                 (const char *[]){"u_InputSampler"}, 1);
 
-    // Bloom x ----------------------------------------------------------------
+    // Bloom x
+    // ------------------------------------------------------------------------
 
-    render_pass(demo, 3, &demo->bloom_x_program, rocket, rocket_row,
-                (GLuint[]){demo->fbs[2].texture},
+    render_pass(demo, &demo->quarter_fbs[1], &demo->bloom_x_program, rocket,
+                rocket_row, (GLuint[]){demo->quarter_fbs[0].texture},
                 (const char *[]){"u_InputSampler"}, 1);
 
-    // Bloom y ----------------------------------------------------------------
+    // Bloom y
+    // ------------------------------------------------------------------------
 
-    render_pass(demo, 2, &demo->bloom_y_program, rocket, rocket_row,
-                (GLuint[]){demo->fbs[3].texture},
+    render_pass(demo, &demo->quarter_fbs[0], &demo->bloom_y_program, rocket,
+                rocket_row, (GLuint[]){demo->quarter_fbs[1].texture},
                 (const char *[]){"u_InputSampler"}, 1);
 
-    // Post shader ------------------------------------------------------------
+    // Post shader
+    // ------------------------------------------------------------------------
 
     render_pass(
-        demo, 3, &demo->post_program, rocket, rocket_row,
-        (GLuint[]){demo->fbs[cur_fb_idx].texture, demo->fbs[2].texture,
+        demo, &demo->fbs[2], &demo->post_program, rocket, rocket_row,
+        (GLuint[]){demo->fbs[cur_fb_idx].texture, demo->quarter_fbs[0].texture,
                    demo->noise_texture},
         (const char *[]){"u_InputSampler", "u_BloomSampler", "u_NoiseSampler"},
         3);
 
-    // Output blit ------------------------------------------------------------
+    // Output blit
+    // ------------------------------------------------------------------------
 
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, demo->fbs[3].framebuffer);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, demo->fbs[2].framebuffer);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT);
 #ifdef DEBUG
