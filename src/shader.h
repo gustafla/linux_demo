@@ -1,8 +1,8 @@
 #ifndef SHADER_H
 #define SHADER_H
 
+#include "gl.h"
 #include "uniforms.h"
-#include <GL/gl.h>
 #include <stddef.h>
 
 typedef struct {

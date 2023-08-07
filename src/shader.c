@@ -1,9 +1,8 @@
 #include "shader.h"
 #include "config.h"
 #include "filesystem.h"
+#include "gl.h"
 #include "uniforms.h"
-#include <GL/gl.h>
-#include <GL/glext.h>
 #include <SDL2/SDL_log.h>
 #include <stddef.h>
 #include <stdio.h>

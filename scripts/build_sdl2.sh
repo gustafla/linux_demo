@@ -42,7 +42,7 @@ cd lib/SDL
 --enable-file=no \
 --enable-misc=no \
 --enable-locale=no \
---enable-sdl2-config=no \
+--enable-sdl2-config=yes \
 CC=$CC CFLAGS="-Os"
 $MAKE
 $MAKE install

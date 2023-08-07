@@ -1,5 +1,6 @@
 #include "config.h"
 #include "demo.h"
+#include "gl.h"
 #include "music_player.h"
 #include "rocket_io.h"
 #include <SDL2/SDL.h>
@@ -64,7 +65,7 @@ static int poll_events(demo_t *demo, struct sync_device *rocket) {
     return 1;
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
     // Initialize SDL
     // This is required to get OpenGL and audio to work
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {
@@ -102,6 +103,15 @@ int main(void) {
                 SDL_GetError());
         return 1;
     }
+
+#ifdef __MINGW64__
+    glewExperimental = GL_TRUE;
+    GLenum err = glewInit();
+    if (err != GLEW_OK) {
+        SDL_Log("glew initialization failed.\n %s\n", glewGetErrorString(err));
+        return 1;
+    }
+#endif
 
     // Initialize music player
     music_player_t *player = music_player_init("data/music.ogg");

@@ -8,7 +8,7 @@
 
 static size_t min(size_t a, size_t b) { return (a < b) ? a : b; }
 
-static char *strdup(const char *str) {
+static char *my_strdup(const char *str) {
     size_t len = strlen(str);
     char *p = calloc(len + 1, sizeof(char));
     memcpy(p, str, len);
@@ -105,7 +105,7 @@ static size_t parse_name(const char *tok, char *name) {
 }
 
 uniform_t *parse_uniforms(const char *shader_src, size_t *count) {
-    char *search = strdup(shader_src);
+    char *search = my_strdup(shader_src);
 
     *count = 0;
     uniform_t *results = malloc(sizeof(uniform_t));

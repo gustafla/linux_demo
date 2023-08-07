@@ -1,4 +1,4 @@
-# Configuration variables
+# Common configuration variables
 BUILDDIR = build
 RELEASEDIR = release
 EXECUTABLE = demo
@@ -7,9 +7,18 @@ STRIP = strip --strip-all
 EXTRA_CFLAGS = -MMD -std=c99 -Wall -Wextra -Wpedantic -Wno-unused-parameter -DGL_GLEXT_PROTOTYPES -I$(BUILDDIR)/include -L$(BUILDDIR)/lib
 SOURCEDIR = src
 SOURCES = $(wildcard $(SOURCEDIR)/*.c)
-LDLIBS = -lm -l:libSDL2.a -lGL -ldl -lpthread
-LIBRARIES = $(BUILDDIR)/lib/libSDL2.a $(BUILDDIR)/lib/librocket.a $(BUILDDIR)/include/stb_vorbis.c
+LIBRARIES = $(BUILDDIR)/lib/librocket.a $(BUILDDIR)/include/stb_vorbis.c
 DEBUG ?= 1
+
+
+# Add MinGW or Linux LDLIBS
+ifeq ($(findstring mingw,$(CC)),mingw)
+LDLIBS += $(shell /usr/x86_64-w64-mingw32/bin/sdl2-config --libs) -lglew32 -lopengl32
+EXECUTABLE := $(EXECUTABLE).exe
+else
+LDLIBS += $(shell $(BUILDDIR)/bin/sdl2-config --static-libs) -lGL
+LIBRARIES += $(BUILDDIR)/lib/libSDL2.a
+endif
 
 
 # Set debug and release build variables
@@ -17,13 +26,13 @@ ifeq ($(DEBUG),0)
 OBJDIR = $(RELEASEDIR)
 CFLAGS += -Os
 EXTRA_CFLAGS += -DSYNC_PLAYER
-LDLIBS += -l:librocket-player.a
+LDLIBS += -lrocket-player
 LIBRARIES += $(BUILDDIR)/include/data.c
 else
 OBJDIR = $(BUILDDIR)
 CFLAGS += -Og -g
 EXTRA_CFLAGS += -DDEBUG
-LDLIBS += -l:librocket.a
+LDLIBS += -lrocket
 endif
 
 
@@ -36,11 +45,16 @@ DEPS = $(OBJS:%.o=%.d)
 # This rule is for linking the final executable
 $(TARGET): $(OBJS)
 	@mkdir -p $(@D)
-	$(CC) -o $@ $(CFLAGS) $(EXTRA_CFLAGS) $^ $(LDLIBS)
-ifeq ($(DEBUG),1)
-	$(MAKE) compile_commands.json
-else
+	$(CC) -o $@ $(CFLAGS) $(EXTRA_CFLAGS) $^ $(LDFLAGS) $(LDLIBS)
+ifeq ($(DEBUG),0)
 	$(STRIP) $(TARGET)
+else
+	$(MAKE) compile_commands.json
+endif
+ifeq ($(findstring mingw,$(CC)),mingw)
+	cp /usr/x86_64-w64-mingw32/bin/SDL2.dll $(OBJDIR)
+	cp /usr/x86_64-w64-mingw32/bin/glew32.dll $(OBJDIR)
+	cp /usr/x86_64-w64-mingw32/bin/libssp-0.dll $(OBJDIR)
 endif
 
 
@@ -95,8 +109,9 @@ compile_commands.json: $(SOURCES)
 
 clean:
 	rm -rf $(BUILDDIR) $(RELEASEDIR) compile_commands.json
+	rm -rf lib/rocket/lib/*.a
+	rm -rf lib/rocket/lib/*.o
 	$(MAKE) -C lib/SDL clean
-	$(MAKE) -C lib/rocket clean
 
 
 .PHONY: run

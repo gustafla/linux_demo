@@ -1,8 +1,7 @@
+#include "gl.h"
 #include "rand.h"
 #include "shader.h"
 #include "uniforms.h"
-#include <GL/gl.h>
-#include <GL/glext.h>
 #include <SDL2/SDL.h>
 #include <assert.h>
 #include <stdlib.h>
