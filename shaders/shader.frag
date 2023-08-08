@@ -18,7 +18,6 @@ uniform sampler2D u_FeedbackSampler;
 
 #define PI 3.14159265
 #define EPSILON 0.001
-#define SAMPLES 4
 
 float aspectRatio() {
     return u_Resolution.x / u_Resolution.y;
@@ -26,7 +25,7 @@ float aspectRatio() {
 
 mat3 viewMatrix() {
 	vec3 f = normalize(r_Cam_Target - r_Cam_Pos);
-	vec3 s = normalize(cross(f, vec3(0., 1., 0.)));
+	vec3 s = cross(f, vec3(0., 1., 0.));
 	vec3 u = cross(s, f);
     return mat3(s, u, f);
 }
