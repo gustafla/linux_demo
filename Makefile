@@ -50,6 +50,7 @@ ifeq ($(DEBUG),0)
 	$(STRIP) $(TARGET)
 else
 	$(MAKE) compile_commands.json
+	mkdir -p data/
 endif
 ifeq ($(findstring mingw,$(CC)),mingw)
 	cp /usr/x86_64-w64-mingw32/bin/SDL2.dll $(OBJDIR)
