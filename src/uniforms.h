@@ -5,6 +5,7 @@
 
 #define UFM_NAME_MAX 32
 
+// Currently supported GLSL uniform types are listed in this enum
 typedef enum {
     UFM_UNKNOWN = 0,
     UFM_FLOAT,
@@ -14,6 +15,7 @@ typedef enum {
     UFM_INT,
 } uniform_type_t;
 
+// This struct represents a GLSL uniform declaration
 typedef struct {
     uniform_type_t type;
     char name[UFM_NAME_MAX];

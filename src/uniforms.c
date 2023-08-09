@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static size_t min(size_t a, size_t b) { return (a < b) ? a : b; }
-
+// I wrote a dumb reimplementation of `strdup` for some reason.
+// Read `man strdup` for more information on `strdup`.
 static char *my_strdup(const char *str) {
     size_t len = strlen(str);
     char *p = calloc(len + 1, sizeof(char));
@@ -15,23 +15,28 @@ static char *my_strdup(const char *str) {
     return p;
 }
 
+// This function returns the string `tok` without leading blank characters.
 static char *skip_spaces(char *tok) {
-    while (*tok == ' ' || *tok == '\t') {
+    while (isblank(*tok)) {
         tok++;
     }
     return tok;
 }
 
+// If string `a` begins with the string `b`, it is a "match" (1 is returned).
+// This differs from `strcmp`, because strcmp wants both to be the same length.
 static int match_str(const char *a, const char *b) {
     size_t len_a = strlen(a);
     size_t len_b = strlen(b);
-    size_t len = min(len_a, len_b);
-    if (!len) {
+    if (len_a < len_b) {
         return 0;
     }
-    return memcmp(a, b, len) == 0;
+    return memcmp(a, b, len_b) == 0;
 }
 
+// Checks string `tok` if it contains a supported GLSL type. Returns the length
+// of such type (in source code characters) when a type is found, and sets *type
+// to match.
 static size_t parse_type(char *tok, uniform_type_t *type) {
     size_t type_len = 0;
 
@@ -64,6 +69,8 @@ static size_t parse_type(char *tok, uniform_type_t *type) {
     return type_len;
 }
 
+// Checks string `tok` if it contains a usable GLSL identifier.
+// Returns the length of such name if it is usable, and copies it to *name.
 static size_t parse_name(const char *tok, char *name) {
     size_t len = strlen(tok);
 
@@ -104,6 +111,14 @@ static size_t parse_name(const char *tok, char *name) {
     return final_len;
 }
 
+// Checks every line (\n) and every source code line (;) in shader_src and
+// returns an array of uniforms that were found in it.
+// Limitations: does not validate code, just ad hoc parses it.
+// Does not support structs. Does not support uniforms that span multiple lines
+// for example:
+//
+// uniform float
+// thisIsNotSupported;
 uniform_t *parse_uniforms(const char *shader_src, size_t *count) {
     char *search = my_strdup(shader_src);
 

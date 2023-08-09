@@ -9,9 +9,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_SRC_FRAGMENTS 16
-
 #ifdef DEBUG
+// This read_file implementation completely reads a file from disk.
+// Returns the number of bytes in the file, or 0 if the read failed.
+// Changes *dst via pointer dereference. If successful *dst will point to the
+// data, or sets it to NULL if unsuccessful.
 static size_t read_file(const char *filename, char **dst) {
     FILE *file = fopen(filename, "rb");
     if (!file) {
@@ -43,11 +45,17 @@ cleanup:
     return 0;
 }
 #else
+// This read_file implementation gives access to a file in the executable
+// via `filesystem_open` (filesystem.c).
+// Returns the number of bytes in the file, or 0 if the read failed.
+// Changes *dst via pointer dereference. If successful *dst will point to the
+// data, or sets it to NULL if unsuccessful.
 static size_t read_file(const char *filename, char **dst) {
     unsigned int len = 0;
     const unsigned char *data = filesystem_open(filename, &len);
     if (!data) {
         SDL_Log("Cannot find file %s\n", filename);
+        *dst = NULL;
         return 0;
     }
 
@@ -56,6 +64,8 @@ static size_t read_file(const char *filename, char **dst) {
 }
 #endif
 
+// This function maps shader file extensions like "vert" or "frag" to an enum
+// defined in shader.h
 static GLenum type_to_enum(const char *shader_type) {
     if (strcmp("vert", shader_type) == 0) {
         return GL_VERTEX_SHADER;
@@ -68,30 +78,44 @@ static GLenum type_to_enum(const char *shader_type) {
     return GL_INVALID_ENUM;
 }
 
+// This function preprocesses, drives uniform parsing and compiles a shader.
+// Inputs:
+//    `shader_src`: The base shader source code (excluding #version directive)
+//    `shader_src_len`: The length in bytes of `shader_src`.
+//    `shader_type`: The shader's file extension (like "vert" or "frag")
+//    `defines`: An array of shader_define_t:s (see shader.h)
+//    `n_defs`: The count of items in `defines`
+// In all cases, the function returns a `shader_t`. Check its `handle`-field
+// for value 0. If `handle` is 0, compilation failed.
 shader_t compile_shader(const char *shader_src, size_t shader_src_len,
                         const char *shader_type, const shader_define_t *defines,
                         size_t n_defs) {
-    static const char *src[MAX_SRC_FRAGMENTS];
-    static GLint src_lens[MAX_SRC_FRAGMENTS];
+    static const char *src[MAX_SHADER_FRAGMENTS];
+    static GLint src_lens[MAX_SHADER_FRAGMENTS];
 
-    // Set src_lens to all 1-bits because that will cause them to be negative.
-    //
     // glShaderSource documentation:
     //
     // Each element in the length array may contain the length of the
     // corresponding string (the null character is not counted as part
     // of the string length) or a value less than 0 to indicate that
     // the string is null terminated.
-    memset(src_lens, ~0, MAX_SRC_FRAGMENTS * sizeof(GLint));
+    //
+    // Because most of our src fragments are null-terminated, we set the whole
+    // array of src_lens to -1 by default.
+    for (size_t i = 0; i < MAX_SHADER_FRAGMENTS; i++) {
+        src_lens[i] = -1;
+    }
 
     shader_t ret = {0};
     ret.uniforms = parse_uniforms(shader_src, &ret.uniform_count);
     ret.handle = glCreateShader(type_to_enum(shader_type));
 
+    // Iterate defines and inject #define directives right after an injected
+    // #version -directive.
     size_t i = 0;
     src[i++] = GLSL_VERSION;
     if (defines) {
-        for (size_t j = 0; j < n_defs && i + 5 < MAX_SRC_FRAGMENTS; j++) {
+        for (size_t j = 0; j < n_defs && i + 5 < MAX_SHADER_FRAGMENTS; j++) {
             src[i++] = "#define ";
             src[i++] = defines[j].name;
             src[i++] = " ";
@@ -99,12 +123,15 @@ shader_t compile_shader(const char *shader_src, size_t shader_src_len,
             src[i++] = "\n";
         }
     }
+    // Remember to add shader_src_len to the right slot in src_lens, as
+    // shader_src is not null terminated (it is read from disk or executable)
     src_lens[i] = shader_src_len;
     src[i++] = shader_src;
 
     glShaderSource(ret.handle, i, src, src_lens);
     glCompileShader(ret.handle);
 
+    // Check and report errors
     GLint status;
     glGetShaderiv(ret.handle, GL_COMPILE_STATUS, &status);
     if (status == GL_FALSE) {
@@ -122,6 +149,8 @@ shader_t compile_shader(const char *shader_src, size_t shader_src_len,
     return ret;
 }
 
+// This function is similar to the one above, but it loads a file by filename
+// first, before running compile_shader.
 shader_t compile_shader_file(const char *filename,
                              const shader_define_t *defines, size_t n_defs) {
     char *shader_src = NULL;
@@ -151,6 +180,9 @@ shader_t compile_shader_file(const char *filename,
     return shader;
 }
 
+// This function "combines" shaders to a usable shader program.
+// In all cases, the function returns a `program_t`. Check its `handle`-field
+// for value 0. If `handle` is 0, compilation failed.
 program_t link_program(shader_t *shaders, size_t count) {
     program_t ret = (program_t){0};
     ret.handle = glCreateProgram();
@@ -166,6 +198,7 @@ program_t link_program(shader_t *shaders, size_t count) {
 
     glLinkProgram(ret.handle);
 
+    // Check and report errors
     GLint status;
     glGetProgramiv(ret.handle, GL_LINK_STATUS, &status);
     if (status == GL_FALSE) {

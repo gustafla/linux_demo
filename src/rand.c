@@ -1,4 +1,4 @@
-/*  Adapted from the code included on Sebastiano Vigna's website */
+// Adapted from the code included on Sebastiano Vigna's website
 
 #include <stdint.h>
 
@@ -8,6 +8,8 @@ struct xoshiro256ss_state {
     uint64_t s[4];
 } state = {{123, 450435, 9, ~0}};
 
+// A xoshiro PRNG (pseudorandom number generator)
+// Fast, and be used for randomness/noise in graphics or audio
 uint64_t rand_xoshiro(void) {
     uint64_t *s = state.s;
     uint64_t const result = rol64(s[1] * 5, 7) * 9;

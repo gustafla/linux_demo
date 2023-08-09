@@ -1,3 +1,4 @@
+#include "config.h"
 #include "gl.h"
 #include "rand.h"
 #include "shader.h"
@@ -8,9 +9,6 @@
 #include <string.h>
 #include <sync.h>
 
-// A RGBA noise texture is generated for every frame. It's pixel count is this
-// value squared.
-#define NOISE_SIZE 256
 // Allocate this many FBO:s to run render passes.
 #define FBS 3
 // Allocate this many FBO:s with 1/4th resolution (width/2, height/2).
