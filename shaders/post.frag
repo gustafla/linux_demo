@@ -1,3 +1,6 @@
+// This shader gets run last for eveything we've rendered so far.
+// It currently features bloom, tone mapping, chromatic aberration and noise.
+
 out vec4 FragColor;
 
 in vec2 FragCoord;
@@ -12,6 +15,7 @@ uniform float r_Post_Aberration;
 
 #define BLUR_SAMPLES 8
 
+// https://64.github.io/tonemapping/
 vec3 acesApprox(vec3 v) {
     v *= 0.6;
     float a = 2.51;
@@ -22,6 +26,7 @@ vec3 acesApprox(vec3 v) {
     return clamp((v*(a*v+b))/(v*(c*v+d)+e), 0., 1.);
 }
 
+// This is used to achieve chromatic aberration
 vec3 radialSum(vec2 r) {
     vec3 color = vec3(0.);
     for (int i = 0; i < BLUR_SAMPLES; i++) {

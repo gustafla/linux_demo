@@ -1,3 +1,8 @@
+// This shader is used to blur from the input image in X or Y direction.
+// It is currently only used for the bloom effect.
+// Read more about the bloom effect from
+// https://learnopengl.com/Advanced-Lighting/Bloom
+
 out vec4 FragColor;
 
 uniform sampler2D u_InputSampler;

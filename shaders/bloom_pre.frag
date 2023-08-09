@@ -1,3 +1,7 @@
+// This shader is used to separate bright parts from the input image.
+// Read more about the bloom effect from
+// https://learnopengl.com/Advanced-Lighting/Bloom
+
 out vec4 FragColor;
 
 in vec2 FragCoord;
