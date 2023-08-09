@@ -3,6 +3,7 @@
 
 #include <sync.h>
 
+// Forward declaration so that implementation remains opaque
 typedef struct demo_t_ demo_t;
 
 demo_t *demo_init(int width, int height);

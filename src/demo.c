@@ -8,13 +8,16 @@
 #include <string.h>
 #include <sync.h>
 
+// A RGBA noise texture is generated for every frame. It's pixel count is this
+// value squared.
 #define NOISE_SIZE 256
+// Allocate this many FBO:s to run render passes.
 #define FBS 3
+// Allocate this many FBO:s with 1/4th resolution (width/2, height/2).
 #define QUARTER_FBS 2
 
-#define GET_VALUE(track_name)                                                  \
-    sync_get_val(sync_get_track(rocket, track_name), rocket_row)
-
+// A constant vertex shader, which uses gl_VertexID to output
+// a viewport-filling quad. No buffers or Input Assembly needed.
 static const char *vertex_shader_src =
     "out vec2 FragCoord;\n"
     "void main() {\n"
@@ -24,6 +27,7 @@ static const char *vertex_shader_src =
     "    gl_Position = coords[gl_VertexID];\n"
     "}\n";
 
+// This struct bundles FBO resources and metadata
 typedef struct {
     GLuint framebuffer;
     GLuint texture;
@@ -31,26 +35,44 @@ typedef struct {
     GLsizei height;
 } fbo_t;
 
+// This messy struct is the backbone of our renderer.
 typedef struct {
+    // Holds the "internal" aspect ratio, not window aspect ratio
     double aspect_ratio;
+    // These integers hold final output window scaling information
     int x0;
     int y0;
     int x1;
     int y1;
+    // This integer is used for animating reloads
     uint64_t reload_time;
+    // OpenGL core requires that we use a VAO when issuing any drawcalls
     GLuint vao;
+    // Shader programs for render passes. The stars of this show.
     program_t effect_program;
     program_t post_program;
     program_t bloom_pre_program;
     program_t bloom_x_program;
     program_t bloom_y_program;
+    // If integer value is 0, there is a problem with the shaders
     int programs_ok;
+    // A RGBA noise texture is used in rendering
     GLuint noise_texture;
+    // Our FBOs used for rendering every frame
     fbo_t fbs[FBS];
     fbo_t quarter_fbs[QUARTER_FBS];
+    // This integer is the index ([] number) of the FB which holds current
+    // frame's "main" target FBO. 0 or 1. This FB gets the base rendered image
+    // before any post processing etc, and the other (0 or 1) holds the previous
+    // frame's first pass result for feedback effects.
     size_t firstpass_fb_idx;
 } demo_t;
 
+// Framebuffers/FBs/FBOs are sort of like "invisible images" that you can draw
+// to, instead of drawing directly to the window. This lets us draw stuff but
+// then process the image further in a new pass, by sampling its texture.
+// This function creates FBs with a desired resolution and texture sampling
+// filter.
 static fbo_t create_framebuffer(GLsizei width, GLsizei height, GLint filter) {
     fbo_t fbo = {0};
 
@@ -78,6 +100,9 @@ static fbo_t create_framebuffer(GLsizei width, GLsizei height, GLint filter) {
     return fbo;
 }
 
+// This function replaces *old with new, but only if new has a non-zero
+// handle (meaning, it compiled and linked successfully).
+// Return value is 1 if new program is fine to use, 0 otherwise.
 static int replace_program(program_t *old, program_t new) {
     if (!new.handle) {
 #ifndef DEBUG
@@ -93,7 +118,10 @@ static int replace_program(program_t *old, program_t new) {
     return 1;
 }
 
+// This function drives all shader loading. Gets called on initialization,
+// and also from event handler (main.c) if R is pressed.
 void demo_reload(demo_t *demo) {
+    // First, assume programs are ok.
     demo->programs_ok = 1;
 
     shader_t vertex_shader = compile_shader(
@@ -101,12 +129,16 @@ void demo_reload(demo_t *demo) {
     shader_t fragment_shader =
         compile_shader_file("shaders/shader.frag", NULL, 0);
 
+    // If replace_program returns 0, programs_ok get set to 0 regardless of it's
+    // current value.
     demo->programs_ok &= replace_program(
         &demo->effect_program,
         link_program((shader_t[]){vertex_shader, fragment_shader}, 2));
 
     shader_t post_shader = compile_shader_file("shaders/post.frag", NULL, 0);
 
+    // If replace_program returns 0, programs_ok get set to 0 regardless of it's
+    // current value.
     demo->programs_ok &=
         replace_program(&demo->post_program, link_program(
                                                  (shader_t[]){
@@ -118,6 +150,8 @@ void demo_reload(demo_t *demo) {
     shader_t bloom_pre_shader =
         compile_shader_file("shaders/bloom_pre.frag", NULL, 0);
 
+    // If replace_program returns 0, programs_ok get set to 0 regardless of it's
+    // current value.
     demo->programs_ok &=
         replace_program(&demo->bloom_pre_program, link_program(
                                                       (shader_t[]){
@@ -132,6 +166,8 @@ void demo_reload(demo_t *demo) {
                                 .name = "HORIZONTAL", .value = "1"}},
                             1);
 
+    // If replace_program returns 0, programs_ok get set to 0 regardless of it's
+    // current value.
     demo->programs_ok &=
         replace_program(&demo->bloom_x_program, link_program(
                                                     (shader_t[]){
@@ -142,6 +178,8 @@ void demo_reload(demo_t *demo) {
 
     shader_t bloom_y_shader = compile_shader_file("shaders/blur.frag", NULL, 0);
 
+    // If replace_program returns 0, programs_ok get set to 0 regardless of it's
+    // current value.
     demo->programs_ok &=
         replace_program(&demo->bloom_y_program, link_program(
                                                     (shader_t[]){
@@ -150,6 +188,7 @@ void demo_reload(demo_t *demo) {
                                                     },
                                                     2));
 
+    // Cleanup shader objects because they have already been linked to programs
     shader_deinit(&vertex_shader);
     shader_deinit(&fragment_shader);
     shader_deinit(&post_shader);
@@ -159,6 +198,8 @@ void demo_reload(demo_t *demo) {
     demo->reload_time = SDL_GetTicks64();
 }
 
+// This ugly function computes rectangle coordinates for scaling/letterboxing
+// output from internal aspect ratio to actual window size.
 void demo_resize(demo_t *demo, int width, int height) {
     if ((float)width / (float)height > demo->aspect_ratio) {
         demo->y0 = 0;
@@ -177,6 +218,7 @@ void demo_resize(demo_t *demo, int width, int height) {
     }
 }
 
+// "demo_t's constructor" (if this were C++...)
 demo_t *demo_init(int width, int height) {
     demo_t *demo = calloc(1, sizeof(demo_t));
     if (!demo) {
@@ -186,13 +228,16 @@ demo_t *demo_init(int width, int height) {
     demo->aspect_ratio = (double)width / (double)height;
     demo_resize(demo, width, height);
 
+    // VAO is a must in GL 3.3 core. Don't think about it too much.
     glGenVertexArrays(1, &demo->vao);
     glBindVertexArray(demo->vao);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
+    // Load shaders
     demo_reload(demo);
 
+    // Create FBs
     for (size_t i = 0; i < FBS; i++) {
         demo->fbs[i] = create_framebuffer(width, height, GL_NEAREST);
         if (demo->fbs[i].framebuffer == 0) {
@@ -207,6 +252,7 @@ demo_t *demo_init(int width, int height) {
         }
     }
 
+    // Allocate noise texture
     glActiveTexture(GL_TEXTURE0);
     glGenTextures(1, &demo->noise_texture);
     glBindTexture(GL_TEXTURE_2D, demo->noise_texture);
@@ -218,6 +264,11 @@ demo_t *demo_init(int width, int height) {
     return demo;
 }
 
+// This function returns a corresponding rocket track name for an uniform.
+// Argument `c` is a "component suffix" such as x, y, z, w or \0 if it not
+// required.
+//
+// Example: rocket_track_name(ufm, 'x') -> "Cam:Pos.x"
 static const char *rocket_track_name(uniform_t *ufm, char c) {
     static char trackname[UFM_NAME_MAX];
 
@@ -243,6 +294,13 @@ static const char *rocket_track_name(uniform_t *ufm, char c) {
     return trackname;
 }
 
+// I don't like C macros, but let's limit the use of this one to the following
+// function `set_rocket_uniforms`.
+#define GET_VALUE(track_name)                                                  \
+    sync_get_val(sync_get_track(rocket, track_name), rocket_row)
+
+// This iterates all uniforms in program, and calls the appropriate
+// rocket functions and glUniform functions to glue them together.
 static void set_rocket_uniforms(const program_t *program,
                                 struct sync_device *rocket, double rocket_row) {
     for (size_t i = 0; i < program->uniform_count; i++) {
@@ -281,6 +339,8 @@ static void set_rocket_uniforms(const program_t *program,
     }
 }
 
+// This messy function is the most important one here. It uses a shader program,
+// rocket, input textures etc. to draw the shader to an output (`draw_fb`).
 static void render_pass(const demo_t *demo, const fbo_t *draw_fb,
                         const program_t *program, struct sync_device *rocket,
                         double rocket_row, const GLuint *textures,
@@ -298,6 +358,7 @@ static void render_pass(const demo_t *demo, const fbo_t *draw_fb,
     glUniform1i(glGetUniformLocation(program->handle, "u_NoiseSize"),
                 NOISE_SIZE);
 
+    // Bind textures for upcoming draw operation
     for (size_t i = 0; i < n_textures; i++) {
         glActiveTexture(GL_TEXTURE0 + i);
         glBindTexture(GL_TEXTURE_2D, textures[i]);
@@ -305,11 +366,13 @@ static void render_pass(const demo_t *demo, const fbo_t *draw_fb,
                     i);
     }
 
+    // Draw a screen-filling quad with the shader!
     glBindVertexArray(demo->vao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
 }
 
+// This gets called once per frame from main loop (main.c)
 void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     static unsigned char noise[NOISE_SIZE * NOISE_SIZE * 4];
     const size_t cur_fb_idx = demo->firstpass_fb_idx;
@@ -379,6 +442,8 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
 
     // Output blit
     // ------------------------------------------------------------------------
+    // This stretches or squashes the post-processed image to the window in
+    // correct aspect ratio (framebuffer 0).
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, demo->fbs[2].framebuffer);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);

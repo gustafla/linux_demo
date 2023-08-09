@@ -6,8 +6,13 @@
 #include <SDL2/SDL.h>
 #include <sync.h>
 
+// The surrounding () parentheses are actually important!
+// Without them, the expression could be changed by it's surroundings
+// after the macro is "inlined" in the preprocessor.
 #define ROW_RATE ((BEATS_PER_MINUTE / 60.) * ROWS_PER_BEAT)
 
+// The following functions and sync_cb struct are used to glue rocket to
+// our music player.
 #ifdef DEBUG
 static void set_row(void *d, int row) {
     music_player_t *player = (music_player_t *)d;
@@ -31,6 +36,7 @@ static struct sync_cb rocket_callbacks = {
 };
 #endif
 
+// This handles SDL2 events. Returns 1 to "keep running" or 0 to "stop"/exit.
 static int poll_events(demo_t *demo, struct sync_device *rocket) {
     static SDL_Event e;
 
@@ -105,6 +111,9 @@ int main(int argc, char *argv[]) {
     }
 
 #ifdef __MINGW64__
+    // On windows, we need to actually load/"wrangle" some OpenGL functions
+    // at runtime. We use glew for that, because it's a hassle without using
+    // a library.
     glewExperimental = GL_TRUE;
     GLenum err = glewInit();
     if (err != GLEW_OK) {
@@ -125,7 +134,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-#ifndef DEBUG // Put window in fullscreen when building a non-debug build
+#ifndef DEBUG
+    // Put window in fullscreen when building a non-debug build
     SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
     SDL_ShowCursor(SDL_DISABLE);
 #endif
