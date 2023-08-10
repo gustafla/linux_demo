@@ -143,7 +143,7 @@ which we use to avoid having to release a huge file with uncompressed audio.
 And finally, [rocket](https://rocket.github.io/) is a sync tracker along with a library to edit
 your demo's synchronization with music without having to change code and recompile.
 
-The [`src/`](src/) directory contains 1039 lines of commented C99 code,
+The [`src/`](src/) directory contains 1027 lines of commented C99 code,
 which you can read starting from any file.
 
 Here is is a list of the source files in (subjectively) decreasing order of importance:
