@@ -66,7 +66,7 @@ static size_t read_file(const char *filename, char **dst) {
 
 // This function maps shader file extensions like "vert" or "frag" to an enum
 // defined in shader.h
-static GLenum type_to_enum(const char *shader_type) {
+static GLenum type_from_str(const char *shader_type) {
     if (strcmp("vert", shader_type) == 0) {
         return GL_VERTEX_SHADER;
     } else if (strcmp("geom", shader_type) == 0) {
@@ -87,11 +87,14 @@ static GLenum type_to_enum(const char *shader_type) {
 //    `n_defs`: The count of items in `defines`
 // In all cases, the function returns a `shader_t`. Check its `handle`-field
 // for value 0. If `handle` is 0, compilation failed.
-shader_t compile_shader(const char *shader_src, size_t shader_src_len,
-                        const char *shader_type, const shader_define_t *defines,
-                        size_t n_defs) {
+GLuint compile_shader(const char *shader_src, size_t shader_src_len,
+                      const char *shader_type, const shader_define_t *defines,
+                      size_t n_defs) {
     static const char *src[MAX_SHADER_FRAGMENTS];
     static GLint src_lens[MAX_SHADER_FRAGMENTS];
+
+    // Create empty shader object
+    GLuint shader = glCreateShader(type_from_str(shader_type));
 
     // glShaderSource documentation:
     //
@@ -105,10 +108,6 @@ shader_t compile_shader(const char *shader_src, size_t shader_src_len,
     for (size_t i = 0; i < MAX_SHADER_FRAGMENTS; i++) {
         src_lens[i] = -1;
     }
-
-    shader_t ret = {0};
-    ret.uniforms = parse_uniforms(shader_src, &ret.uniform_count);
-    ret.handle = glCreateShader(type_to_enum(shader_type));
 
     // Iterate defines and inject #define directives right after an injected
     // #version -directive.
@@ -128,35 +127,34 @@ shader_t compile_shader(const char *shader_src, size_t shader_src_len,
     src_lens[i] = shader_src_len;
     src[i++] = shader_src;
 
-    glShaderSource(ret.handle, i, src, src_lens);
-    glCompileShader(ret.handle);
+    glShaderSource(shader, i, src, src_lens);
+    glCompileShader(shader);
 
     // Check and report errors
     GLint status;
-    glGetShaderiv(ret.handle, GL_COMPILE_STATUS, &status);
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
     if (status == GL_FALSE) {
         GLint log_len;
-        glGetShaderiv(ret.handle, GL_INFO_LOG_LENGTH, &log_len);
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_len);
         GLchar *log = malloc(sizeof(GLchar) * log_len);
-        glGetShaderInfoLog(ret.handle, log_len, NULL, log);
+        glGetShaderInfoLog(shader, log_len, NULL, log);
         SDL_Log("Shader compilation failed:\n%s\n", log);
         free(log);
-        free(ret.uniforms);
-        glDeleteShader(ret.handle);
-        return (shader_t){0};
+        glDeleteShader(shader);
+        return 0;
     }
 
-    return ret;
+    return shader;
 }
 
 // This function is similar to the one above, but it loads a file by filename
 // first, before running compile_shader.
-shader_t compile_shader_file(const char *filename,
-                             const shader_define_t *defines, size_t n_defs) {
+GLuint compile_shader_file(const char *filename, const shader_define_t *defines,
+                           size_t n_defs) {
     char *shader_src = NULL;
     size_t shader_src_len = read_file(filename, &shader_src);
     if (shader_src_len == 0) {
-        return (shader_t){0};
+        return 0;
     }
 
     // Find file extension
@@ -167,13 +165,13 @@ shader_t compile_shader_file(const char *filename,
         }
     } while (ret);
 
-    shader_t shader = compile_shader(shader_src, shader_src_len, shader_type,
-                                     defines, n_defs);
+    GLuint shader = compile_shader(shader_src, shader_src_len, shader_type,
+                                   defines, n_defs);
 #ifdef DEBUG
     free(shader_src);
 #endif
 
-    if (shader.handle == 0) {
+    if (shader == 0) {
         SDL_Log("File: %s\n", filename);
     }
 
@@ -183,17 +181,16 @@ shader_t compile_shader_file(const char *filename,
 // This function "combines" shaders to a usable shader program.
 // In all cases, the function returns a `program_t`. Check its `handle`-field
 // for value 0. If `handle` is 0, compilation failed.
-program_t link_program(shader_t *shaders, size_t count) {
+program_t link_program(GLuint *shaders, size_t count) {
     program_t ret = (program_t){0};
     ret.handle = glCreateProgram();
 
     for (size_t i = 0; i < count; i++) {
-        const GLuint shader = shaders[i].handle;
-        if (!shader) {
+        if (!shaders[i]) {
             glDeleteProgram(ret.handle);
             return (program_t){0};
         }
-        glAttachShader(ret.handle, shader);
+        glAttachShader(ret.handle, shaders[i]);
     }
 
     glLinkProgram(ret.handle);
@@ -212,26 +209,17 @@ program_t link_program(shader_t *shaders, size_t count) {
         return (program_t){0};
     }
 
-    // Join all uniforms. Duplicates are allowed.
-    for (size_t i = 0; i < count; i++) {
-        ret.uniform_count += shaders[i].uniform_count;
-    }
-    ret.uniforms = malloc(ret.uniform_count * sizeof(uniform_t));
-    size_t offset = 0;
-    for (size_t i = 0; i < count; i++) {
-        shader_t *s = shaders + i;
-        memcpy(ret.uniforms + offset, s->uniforms,
-               s->uniform_count * sizeof(uniform_t));
-        offset += s->uniform_count;
+    // Query OpenGL for uniforms in the successfully linked program
+    ret.uniforms = get_uniforms(ret.handle, &ret.uniform_count);
+    for (size_t i = 0; i < ret.uniform_count; i++) {
+        printf("Uniform: %s, rocket: %d, track: %s\n", ret.uniforms[i].name,
+               ret.uniforms[i].is_rocket, ret.uniforms[i].track);
     }
 
     return ret;
 }
 
-void shader_deinit(shader_t *shader) {
-    glDeleteShader(shader->handle);
-    free(shader->uniforms);
-}
+void shader_deinit(GLuint shader) { glDeleteShader(shader); }
 
 void program_deinit(program_t *program) {
     glDeleteProgram(program->handle);

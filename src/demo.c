@@ -122,43 +122,43 @@ void demo_reload(demo_t *demo) {
     // First, assume programs are ok.
     demo->programs_ok = 1;
 
-    shader_t vertex_shader = compile_shader(
+    GLuint vertex_shader = compile_shader(
         vertex_shader_src, strlen(vertex_shader_src), "vert", NULL, 0);
-    shader_t fragment_shader =
+    GLuint fragment_shader =
         compile_shader_file("shaders/shader.frag", NULL, 0);
 
     // If replace_program returns 0, programs_ok get set to 0 regardless of it's
     // current value.
     demo->programs_ok &= replace_program(
         &demo->effect_program,
-        link_program((shader_t[]){vertex_shader, fragment_shader}, 2));
+        link_program((GLuint[]){vertex_shader, fragment_shader}, 2));
 
-    shader_t post_shader = compile_shader_file("shaders/post.frag", NULL, 0);
+    GLuint post_shader = compile_shader_file("shaders/post.frag", NULL, 0);
 
     // If replace_program returns 0, programs_ok get set to 0 regardless of it's
     // current value.
     demo->programs_ok &=
         replace_program(&demo->post_program, link_program(
-                                                 (shader_t[]){
+                                                 (GLuint[]){
                                                      vertex_shader,
                                                      post_shader,
                                                  },
                                                  2));
 
-    shader_t bloom_pre_shader =
+    GLuint bloom_pre_shader =
         compile_shader_file("shaders/bloom_pre.frag", NULL, 0);
 
     // If replace_program returns 0, programs_ok get set to 0 regardless of it's
     // current value.
     demo->programs_ok &=
         replace_program(&demo->bloom_pre_program, link_program(
-                                                      (shader_t[]){
+                                                      (GLuint[]){
                                                           vertex_shader,
                                                           bloom_pre_shader,
                                                       },
                                                       2));
 
-    shader_t bloom_x_shader =
+    GLuint bloom_x_shader =
         compile_shader_file("shaders/blur.frag",
                             (shader_define_t[]){(shader_define_t){
                                 .name = "HORIZONTAL", .value = "1"}},
@@ -168,31 +168,31 @@ void demo_reload(demo_t *demo) {
     // current value.
     demo->programs_ok &=
         replace_program(&demo->bloom_x_program, link_program(
-                                                    (shader_t[]){
+                                                    (GLuint[]){
                                                         vertex_shader,
                                                         bloom_x_shader,
                                                     },
                                                     2));
 
-    shader_t bloom_y_shader = compile_shader_file("shaders/blur.frag", NULL, 0);
+    GLuint bloom_y_shader = compile_shader_file("shaders/blur.frag", NULL, 0);
 
     // If replace_program returns 0, programs_ok get set to 0 regardless of it's
     // current value.
     demo->programs_ok &=
         replace_program(&demo->bloom_y_program, link_program(
-                                                    (shader_t[]){
+                                                    (GLuint[]){
                                                         vertex_shader,
                                                         bloom_y_shader,
                                                     },
                                                     2));
 
     // Cleanup shader objects because they have already been linked to programs
-    shader_deinit(&vertex_shader);
-    shader_deinit(&fragment_shader);
-    shader_deinit(&post_shader);
-    shader_deinit(&bloom_pre_shader);
-    shader_deinit(&bloom_x_shader);
-    shader_deinit(&bloom_y_shader);
+    shader_deinit(vertex_shader);
+    shader_deinit(fragment_shader);
+    shader_deinit(post_shader);
+    shader_deinit(bloom_pre_shader);
+    shader_deinit(bloom_x_shader);
+    shader_deinit(bloom_y_shader);
     demo->reload_time = SDL_GetTicks64();
 }
 
@@ -263,31 +263,17 @@ demo_t *demo_init(int width, int height) {
 }
 
 // This function returns a corresponding rocket track name for an uniform.
-// Argument `c` is a "component suffix" such as x, y, z, w or \0 if it not
-// required.
+// Argument `c` is a "component suffix" such as x, y, z or w.
 //
-// Example: rocket_track_name(ufm, 'x') -> "Cam:Pos.x"
-static const char *rocket_track_name(uniform_t *ufm, char c) {
+// Example: rocket_track_suffix(ufm, 'x') -> "Cam:Pos.x"
+static const char *rocket_track_suffix(uniform_t *ufm, char c) {
     static char trackname[UFM_NAME_MAX];
 
-    // Adjust for r_ -prefix
-    const char *name = ufm->name + 2;
-    size_t name_len = ufm->name_len - 2;
+    memcpy(trackname, ufm->track, ufm->track_len + 1);
 
-    memcpy(trackname, name, name_len + 1);
-
-    // Replace second underscore with colon (tab) when possible
-    char *underscore = memchr(trackname, '_', name_len);
-    if (underscore) {
-        *underscore = ':';
-    }
-
-    // Add component suffix when required
-    if (c) {
-        trackname[name_len] = '.';
-        trackname[name_len + 1] = c;
-        trackname[name_len + 2] = 0;
-    }
+    trackname[ufm->track_len] = '.';
+    trackname[ufm->track_len + 1] = c;
+    trackname[ufm->track_len + 2] = 0;
 
     return trackname;
 }
@@ -310,29 +296,35 @@ static void set_rocket_uniforms(const program_t *program,
         }
 
         GLuint location = glGetUniformLocation(program->handle, ufm->name);
+        // assert(location == i);
+
         switch (ufm->type) {
-        case UFM_FLOAT:
-            glUniform1f(location, GET_VALUE(rocket_track_name(ufm, 0)));
+        case GL_FLOAT:
+            glUniform1f(location, GET_VALUE(ufm->track));
             break;
-        case UFM_VEC2:
-            glUniform2f(location, GET_VALUE(rocket_track_name(ufm, 'x')),
-                        GET_VALUE(rocket_track_name(ufm, 'y')));
+        case GL_FLOAT_VEC2:
+            glUniform2f(location, GET_VALUE(rocket_track_suffix(ufm, 'x')),
+                        GET_VALUE(rocket_track_suffix(ufm, 'y')));
             break;
-        case UFM_VEC3:
-            glUniform3f(location, GET_VALUE(rocket_track_name(ufm, 'x')),
-                        GET_VALUE(rocket_track_name(ufm, 'y')),
-                        GET_VALUE(rocket_track_name(ufm, 'z')));
+        case GL_FLOAT_VEC3:
+            glUniform3f(location, GET_VALUE(rocket_track_suffix(ufm, 'x')),
+                        GET_VALUE(rocket_track_suffix(ufm, 'y')),
+                        GET_VALUE(rocket_track_suffix(ufm, 'z')));
             break;
-        case UFM_VEC4:
-            glUniform4f(location, GET_VALUE(rocket_track_name(ufm, 'x')),
-                        GET_VALUE(rocket_track_name(ufm, 'y')),
-                        GET_VALUE(rocket_track_name(ufm, 'z')),
-                        GET_VALUE(rocket_track_name(ufm, 'w')));
+        case GL_FLOAT_VEC4:
+            glUniform4f(location, GET_VALUE(rocket_track_suffix(ufm, 'x')),
+                        GET_VALUE(rocket_track_suffix(ufm, 'y')),
+                        GET_VALUE(rocket_track_suffix(ufm, 'z')),
+                        GET_VALUE(rocket_track_suffix(ufm, 'w')));
             break;
-        case UFM_INT:
-            glUniform1i(location, (GLint)GET_VALUE(rocket_track_name(ufm, 0)));
+        case GL_INT:
+        case GL_SAMPLER_2D:
+            glUniform1i(location, (GLint)GET_VALUE(ufm->track));
             break;
-        case UFM_UNKNOWN:;
+        default:
+            printf("Unsupported shader uniform type: %d.\n", ufm->type);
+            printf("Go add support for it in " __FILE__
+                   " (static void set_rocket_uniforms())\n");
         }
     }
 }
