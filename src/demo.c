@@ -2,12 +2,12 @@
 #include "gl.h"
 #include "rand.h"
 #include "shader.h"
+#include "sync.h"
 #include "uniforms.h"
 #include <SDL2/SDL.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sync.h>
 
 // Allocate this many FBO:s to run render passes.
 #define FBS 3
@@ -266,14 +266,27 @@ demo_t *demo_init(int width, int height) {
 // Argument `c` is a "component suffix" such as x, y, z or w.
 //
 // Example: rocket_track_suffix(ufm, 'x') -> "Cam:Pos.x"
-static const char *rocket_track_suffix(uniform_t *ufm, char c) {
+static const char *rocket_track_name(const uniform_t *ufm, char c) {
     static char trackname[UFM_NAME_MAX];
 
-    memcpy(trackname, ufm->track, ufm->track_len + 1);
+    // Adjust for r_ -prefix
+    const char *name = ufm->name + 2;
+    size_t name_len = ufm->name_len - 2;
 
-    trackname[ufm->track_len] = '.';
-    trackname[ufm->track_len + 1] = c;
-    trackname[ufm->track_len + 2] = 0;
+    memcpy(trackname, name, name_len + 1);
+
+    // Replace first dot with colon(tab) when possible
+    char *instance = memchr(trackname, '.', name_len);
+    if (instance) {
+        *instance = ':';
+    }
+
+    // Add component suffix when requested
+    if (c) {
+        trackname[name_len] = '.';
+        trackname[name_len + 1] = c;
+        trackname[name_len + 2] = 0;
+    }
 
     return trackname;
 }
@@ -285,52 +298,99 @@ static const char *rocket_track_suffix(uniform_t *ufm, char c) {
 
 // This iterates all uniforms in program, and calls the appropriate
 // rocket functions and glUniform functions to glue them together.
+// In addition to glUniform, it also supports block uniform buffers.
+// This is unnecessarily complex and might get reduced to support
+// only block uniforms in a later release.
 static void set_rocket_uniforms(const program_t *program,
                                 struct sync_device *rocket, double rocket_row) {
+    // Iterate every active uniform in program
     for (size_t i = 0; i < program->uniform_count; i++) {
         uniform_t *ufm = program->uniforms + i;
+        // This tag is used to mark uniform's base type (null, float or int)
+        static enum { N = 0, F, I } tag = 0;
+        // Staging buffer to be uploaded to uniform memory in OpenGL
+        static union {
+            GLfloat f[4];
+            GLint i;
+        } staging;
+        // Number of elements (e.g. vec3 => 3)
+        GLsizeiptr size = 0;
 
         // Check for r_ -prefix
         if (ufm->name_len < 3 || ufm->name[0] != 'r' || ufm->name[1] != '_') {
             continue;
         }
 
-        GLuint location = glGetUniformLocation(program->handle, ufm->name);
-        // assert(location == i);
-
+        // Fill the staging buffer and set tag and size
         switch (ufm->type) {
-        case GL_FLOAT:
-            glUniform1f(location, GET_VALUE(ufm->track));
-            break;
-        case GL_FLOAT_VEC2:
-            glUniform2f(location, GET_VALUE(rocket_track_suffix(ufm, 'x')),
-                        GET_VALUE(rocket_track_suffix(ufm, 'y')));
-            break;
-        case GL_FLOAT_VEC3:
-            glUniform3f(location, GET_VALUE(rocket_track_suffix(ufm, 'x')),
-                        GET_VALUE(rocket_track_suffix(ufm, 'y')),
-                        GET_VALUE(rocket_track_suffix(ufm, 'z')));
-            break;
         case GL_FLOAT_VEC4:
-            glUniform4f(location, GET_VALUE(rocket_track_suffix(ufm, 'x')),
-                        GET_VALUE(rocket_track_suffix(ufm, 'y')),
-                        GET_VALUE(rocket_track_suffix(ufm, 'z')),
-                        GET_VALUE(rocket_track_suffix(ufm, 'w')));
+            staging.f[3] = GET_VALUE(rocket_track_name(ufm, 'w'));
+            size = 4;
+            // fall through
+        case GL_FLOAT_VEC3:
+            staging.f[2] = GET_VALUE(rocket_track_name(ufm, 'z'));
+            size = size ? size : 3;
+            // fall through
+        case GL_FLOAT_VEC2:
+            staging.f[1] = GET_VALUE(rocket_track_name(ufm, 'y'));
+            staging.f[0] = GET_VALUE(rocket_track_name(ufm, 'x'));
+            size = size ? size : 2;
+            tag = F;
+            break;
+        case GL_FLOAT:
+            staging.f[0] = GET_VALUE(rocket_track_name(ufm, 0));
+            size = 1;
+            tag = F;
             break;
         case GL_INT:
         case GL_SAMPLER_2D:
-            glUniform1i(location, (GLint)GET_VALUE(ufm->track));
+            staging.i = (GLint)GET_VALUE(rocket_track_name(ufm, 0));
+            size = 1;
+            tag = I;
             break;
         default:
-            printf("Unsupported shader uniform type: %d.\n", ufm->type);
-            printf("Go add support for it in " __FILE__
-                   " (static void set_rocket_uniforms())\n");
+            SDL_Log("Unsupported shader uniform type: %d.\n", ufm->type);
+            SDL_Log("Go add support for it in " __FILE__
+                    " (static void set_non_block_rocket_uniform())\n");
+        }
+
+        // Dispatch OpenGL calls to upload the staging buffer
+        if (ufm->block_index == -1) {
+            // Non-block uniform
+            GLint location = glGetUniformLocation(program->handle, ufm->name);
+            if (tag == F && size == 1) {
+                glUniform1fv(location, 1, (GLfloat *)&staging);
+            } else if (tag == F && size == 2) {
+                glUniform2fv(location, 1, (GLfloat *)&staging);
+            } else if (tag == F && size == 3) {
+                glUniform3fv(location, 1, (GLfloat *)&staging);
+            } else if (tag == F && size == 4) {
+                glUniform4fv(location, 1, (GLfloat *)&staging);
+            } else if (tag == I && size == 1) {
+                glUniform1iv(location, 1, (GLint *)&staging);
+            } else {
+                SDL_Log("Oops, check" __FILE__ " line %d\n", __LINE__);
+            }
+        } else {
+            // Block uniform
+            GLuint buffer = program->block_buffers[ufm->block_index];
+            glBindBuffer(GL_UNIFORM_BUFFER, buffer);
+            if (tag == F) {
+                size *= sizeof(GLfloat);
+            } else if (tag == I) {
+                size *= sizeof(GLint);
+            } else {
+                SDL_Log("Oops, check" __FILE__ " line %d\n", __LINE__);
+            }
+            glBufferSubData(GL_UNIFORM_BUFFER, ufm->offset, size, &staging);
+            glBindBuffer(GL_UNIFORM_BUFFER, 0);
         }
     }
 }
 
-// This messy function is the most important one here. It uses a shader program,
-// rocket, input textures etc. to draw the shader to an output (`draw_fb`).
+// This messy function is the most important one here. It uses a shader
+// program, rocket, input textures etc. to draw the shader to an output
+// (`draw_fb`).
 static void render_pass(const demo_t *demo, const fbo_t *draw_fb,
                         const program_t *program, struct sync_device *rocket,
                         double rocket_row, const GLuint *textures,
@@ -347,6 +407,11 @@ static void render_pass(const demo_t *demo, const fbo_t *draw_fb,
                 draw_fb->width, draw_fb->height);
     glUniform1i(glGetUniformLocation(program->handle, "u_NoiseSize"),
                 NOISE_SIZE);
+    // Bind uniform blocks
+    for (size_t i = 0; i < program->block_count; i++) {
+        glUniformBlockBinding(program->handle, i, i);
+        glBindBufferBase(GL_UNIFORM_BUFFER, i, program->block_buffers[i]);
+    }
 
     // Bind textures for upcoming draw operation
     for (size_t i = 0; i < n_textures; i++) {

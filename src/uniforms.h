@@ -8,13 +8,17 @@
 
 typedef struct {
     GLenum type;
-    GLboolean is_rocket;
+    GLint block_index;
+    GLint offset;
     GLsizei name_len;
-    GLsizei track_len;
     GLchar name[UFM_NAME_MAX];
-    GLchar track[UFM_NAME_MAX];
 } uniform_t;
 
+typedef struct {
+    GLint size;
+} uniform_block_t;
+
 uniform_t *get_uniforms(GLuint program, size_t *count);
+uniform_block_t *get_uniform_blocks(GLuint program, size_t *count);
 
 #endif

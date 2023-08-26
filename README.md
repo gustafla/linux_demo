@@ -143,15 +143,15 @@ which we use to avoid having to release a huge file with uncompressed audio.
 And finally, [rocket](https://rocket.github.io/) is a sync tracker along with a library to edit
 your demo's synchronization with music without having to change code and recompile.
 
-The [`src/`](src/) directory contains 933 lines of commented C99 code,
+The [`src/`](src/) directory contains 995 lines of commented C99 code,
 which you can read starting from any file.
 
-Here is is a list of the source files in (subjectively) decreasing order of importance:
+Here is is a list of the source units in (subjectively) decreasing order of importance:
 - [`main.c`](src/main.c): Initializes window, OpenGL context, audio, music player, rocket. Contains demo's main loop.
-- [`demo.c`](src/demo.c): Most OpenGL calls happen in this file.
-- [`shader.c`](src/shader.c): Utilities for loading and compiling shaders.
-- [`uniforms.c`](src/uniforms.c): Contains code for querying and processing uniforms in shader programs.
-- [`music_player.c`](src/music_player.c): Music player with OGG Vorbis streaming, seeking and timing support for sync editor.
-- [`filesystem.c`](src/filesystem.c): Includes `data.c` which [`scripts/mkfs.sh`](scripts/mkfs.sh) generates at build time. Has functions for reading embedded files.
-- [`rocket_io.c`](src/rocket_io.c): This file hosts rocket `sync_io_cb` (I/O callback) code for rocket to load tracks from embedded files.
-- [`rand.c`](src/rand.c): A xoshiro PRNG implementation, mostly used for post processing noise.
+- [`demo.c`](src/demo.c)/[`demo.h`](src/demo.h): Most OpenGL calls happen in this unit.
+- [`shader.c`](src/shader.c)/[`shader.h`](src/shader.h): Utilities for loading and compiling shaders.
+- [`uniforms.c`](src/uniforms.c)/[`uniforms.h`](src/uniforms.h): Contains code for querying uniforms in shader programs.
+- [`music_player.c`](src/music_player.c)/[`music_player.h`](src/music_player.h): Music player with OGG Vorbis streaming, seeking and timing support for sync editor.
+- [`filesystem.c`](src/filesystem.c)/[`filesystem.h`](src/filesystem.h): Includes `data.c` which [`scripts/mkfs.sh`](scripts/mkfs.sh) generates at build time. Has functions for reading embedded files.
+- [`rocket_io.c`](src/rocket_io.c)/[`rocket_io.h`](src/rocket_io.h): This file hosts rocket `sync_io_cb` (I/O callback) code for rocket to load tracks from embedded files.
+- [`rand.c`](src/rand.c)/[`rand.h`](src/rand.h): A xoshiro PRNG implementation, mostly used for post processing noise.

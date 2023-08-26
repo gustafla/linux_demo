@@ -211,9 +211,16 @@ program_t link_program(GLuint *shaders, size_t count) {
 
     // Query OpenGL for uniforms in the successfully linked program
     ret.uniforms = get_uniforms(ret.handle, &ret.uniform_count);
-    for (size_t i = 0; i < ret.uniform_count; i++) {
-        printf("Uniform: %s, rocket: %d, track: %s\n", ret.uniforms[i].name,
-               ret.uniforms[i].is_rocket, ret.uniforms[i].track);
+    ret.blocks = get_uniform_blocks(ret.handle, &ret.block_count);
+
+    // Generate one buffer per uniform block
+    ret.block_buffers = calloc(ret.block_count, sizeof(GLuint));
+    glGenBuffers(ret.block_count, ret.block_buffers);
+    for (size_t i = 0; i < ret.block_count; i++) {
+        glBindBuffer(GL_UNIFORM_BUFFER, ret.block_buffers[i]);
+        glBufferData(GL_UNIFORM_BUFFER, ret.blocks[i].size, NULL,
+                     GL_STATIC_DRAW);
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
     }
 
     return ret;
@@ -222,6 +229,9 @@ program_t link_program(GLuint *shaders, size_t count) {
 void shader_deinit(GLuint shader) { glDeleteShader(shader); }
 
 void program_deinit(program_t *program) {
+    glDeleteBuffers(program->block_count, program->block_buffers);
     glDeleteProgram(program->handle);
     free(program->uniforms);
+    free(program->blocks);
+    free(program->block_buffers);
 }

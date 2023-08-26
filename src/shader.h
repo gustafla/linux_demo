@@ -19,8 +19,11 @@ typedef struct {
 // nonzero handle-field, 0 represents that an error happened.
 typedef struct {
     GLuint handle;
-    uniform_t *uniforms;
     size_t uniform_count;
+    uniform_t *uniforms;
+    size_t block_count;
+    uniform_block_t *blocks;
+    GLuint *block_buffers;
 } program_t;
 
 GLuint compile_shader(const char *shader_src, size_t shader_src_len,
