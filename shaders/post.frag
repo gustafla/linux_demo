@@ -1,6 +1,8 @@
 // This shader gets run last for eveything we've rendered so far.
 // It currently features bloom, tone mapping, chromatic aberration and noise.
 
+precision highp float;
+
 out vec4 FragColor;
 
 in vec2 FragCoord;
@@ -33,7 +35,7 @@ vec3 acesApprox(vec3 v) {
 vec3 radialSum(vec2 r) {
     vec3 color = vec3(0.);
     for (int i = 0; i < BLUR_SAMPLES; i++) {
-        vec2 d = (r * float(i) * post.aberration) / BLUR_SAMPLES;
+        vec2 d = (r * float(i) * post.aberration) / float(BLUR_SAMPLES);
         vec2 uv = FragCoord * (0.5 - d) + 0.5;
         color += texture2D(u_InputSampler, uv).rgb;
     }
@@ -47,7 +49,7 @@ void main() {
         radialSum(pixel * 3.).r,
         radialSum(pixel * 2.).g,
         radialSum(pixel * 1.).b
-    ) / BLUR_SAMPLES;
+    ) / float(BLUR_SAMPLES);
 
     // Add bloom
     color += texture2D(u_BloomSampler, FragCoord * 0.5 + 0.5).rgb;

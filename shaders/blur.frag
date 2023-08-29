@@ -3,6 +3,8 @@
 // Read more about the bloom effect from
 // https://learnopengl.com/Advanced-Lighting/Bloom
 
+precision highp float;
+
 out vec4 FragColor;
 
 uniform sampler2D u_InputSampler;

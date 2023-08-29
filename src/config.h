@@ -21,6 +21,10 @@
 
 // GLSL_VERSION is prefixed to every shader, change it if you need some other
 // version than specified here.
+#ifdef GLES
+#define GLSL_VERSION "#version 300 es\n"
+#else
 #define GLSL_VERSION "#version 330 core\n"
+#endif
 
 #endif

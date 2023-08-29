@@ -4,20 +4,31 @@ RELEASEDIR = release
 EXECUTABLE = demo
 CC = gcc
 STRIP = strip --strip-all
-EXTRA_CFLAGS = -MMD -std=c99 -Wall -Wextra -Wpedantic -Wno-unused-parameter -DGL_GLEXT_PROTOTYPES -I$(BUILDDIR)/include -L$(BUILDDIR)/lib
+EXTRA_CFLAGS = -MMD -std=c99 -Wall -Wextra -Wpedantic -Wno-unused-parameter -I$(BUILDDIR)/include -L$(BUILDDIR)/lib
 SOURCEDIR = src
 SOURCES = $(wildcard $(SOURCEDIR)/*.c)
 LIBRARIES = $(BUILDDIR)/lib/librocket.a $(BUILDDIR)/include/stb_vorbis.c
 DEBUG ?= 1
 
 
-# Add MinGW or Linux LDLIBS
+# Add platform dependent build and linker flags
 ifeq ($(findstring mingw,$(CC)),mingw)
+# MinGW SDL2 and OpenGL
 LDLIBS += $(shell /usr/x86_64-w64-mingw32/bin/sdl2-config --libs) -lglew32 -lopengl32
 EXECUTABLE := $(EXECUTABLE).exe
 else
-LDLIBS += $(shell $(BUILDDIR)/bin/sdl2-config --static-libs) -lGL
+# Linux SDL2
+LDLIBS += $(shell $(BUILDDIR)/bin/sdl2-config --static-libs)
 LIBRARIES += $(BUILDDIR)/lib/libSDL2.a
+ifeq ($(GLES),1)
+# Linux GLES
+LDLIBS += -lGLESv2
+EXTRA_CFLAGS += -DGLES
+else
+# Linux regular OpenGL (default)
+LDLIBS += -lGL
+EXTRA_CFLAGS += -DGL_GLEXT_PROTOTYPES
+endif
 endif
 
 

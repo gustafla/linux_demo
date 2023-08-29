@@ -3,6 +3,8 @@
 // and Inigo Quilez
 // https://iquilezles.org/articles/distfunctions/
 
+precision highp float;
+
 out vec4 FragColor;
 
 in vec2 FragCoord;

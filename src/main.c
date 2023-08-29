@@ -79,11 +79,18 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Set OpenGL version to 3.3 core
+    // Set OpenGL version (ES 3.2 when GLES configured in make)
+#ifdef GLES
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+#else
+    // Set OpenGL version (3.3 core is the default)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
                         SDL_GL_CONTEXT_PROFILE_CORE);
+#endif
 
     // Set OpenGL default framebuffer to sRGB without depth buffer
     // We won't need a depth buffer for running GLSL shaders
