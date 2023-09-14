@@ -79,20 +79,106 @@ static GLenum type_from_str(const char *shader_type) {
     return GL_INVALID_ENUM;
 }
 
-// This function preprocesses, drives uniform parsing and compiles a shader.
+// This function finds the first #include directive (whole line) from shader_src
 // Inputs:
-//    `shader_src`: The base shader source code (excluding #version directive)
+//    `shader_src`:     The characters to search from.
+//    `shader_src_len`: The length of `shader_src` in bytes.
+//    `start`:          Directive's start offset relative to `shader_src` will
+//                      be written to `start`.
+//    `end`:            Directive's end offset (start of next line) relative to
+//                      `shader_src` will be written to `end`.
+// Returns a null-terminated string containing the #included filename if found,
+// otherwise returns NULL.
+const char *find_include(const char *shader_src, const size_t shader_src_len,
+                         size_t *start, size_t *end) {
+    static char filename[MAX_INCLUDE_NAME_LEN];
+
+    // Allocate search scratch
+    char *buf = calloc(shader_src_len + 1, sizeof(char));
+    memcpy(buf, shader_src, shader_src_len);
+
+    // Iterate line by line
+    for (char *tok = strtok(buf, "\n"); tok; tok = strtok(NULL, "\n")) {
+        // If line starts with #include
+        if (strncmp(tok, "#include ", 9) == 0) {
+            // Write start and end offsets for caller parser
+            *start = tok - buf;
+            char *line_end = strchr(tok, 0);
+            if (line_end) {
+                *end = (line_end - buf) + 1;
+            } else {
+                *end = shader_src_len;
+            }
+
+            // Find first " on line
+            char *quot1 = strchr(tok, '"');
+            if (!quot1) {
+                continue;
+            }
+
+            // Find second " on line
+            char *namestart = quot1 + 1;
+            char *quot2 = strchr(namestart, '"');
+            if (!quot2) {
+                continue;
+            }
+
+            // Check if fits in filename buffer
+            size_t len = quot2 - namestart;
+            if (len >= MAX_INCLUDE_NAME_LEN) {
+                printf("Too long include filename: %zu\n", len);
+                continue;
+            }
+
+            // Copy filename to static buffer
+            memcpy(filename, namestart, len);
+            filename[len] = 0;
+
+            free(buf);
+            return filename;
+        }
+    }
+
+    free(buf);
+    return NULL;
+}
+
+// This function is unused, but I may need it for debugging. It prints
+// everything that glShaderSource is going to receive.
+void print_src(const char **src, GLint *len, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        printf("len[%zu] == %d\n", i, len[i]);
+        if (!src[i]) {
+            printf("src[%zu] == NULL\n", i);
+            continue;
+        }
+        if (len[i] == -1) {
+            printf("src[%zu] = %s", i, src[i]);
+        } else {
+            printf("src[%zu] = ", i);
+            for (size_t j = 0; j < (size_t)len[i]; j++) {
+                putchar(src[i][j]);
+            }
+        }
+    }
+}
+
+// This function preprocesses and compiles a shader.
+// Inputs:
+//    `shader_src`:     The base shader source code (excluding #version
+//                      directive)
 //    `shader_src_len`: The length in bytes of `shader_src`.
-//    `shader_type`: The shader's file extension (like "vert" or "frag")
-//    `defines`: An array of shader_define_t:s (see shader.h)
-//    `n_defs`: The count of items in `defines`
+//    `shader_type`:    The shader's file extension (like "vert" or "frag")
+//    `defines`:        An array of shader_define_t:s (see shader.h)
+//    `n_defs`:         The count of items in `defines`
 // In all cases, the function returns a `shader_t`. Check its `handle`-field
 // for value 0. If `handle` is 0, compilation failed.
 GLuint compile_shader(const char *shader_src, size_t shader_src_len,
                       const char *shader_type, const shader_define_t *defines,
                       size_t n_defs) {
     static const char *src[MAX_SHADER_FRAGMENTS];
-    static GLint src_lens[MAX_SHADER_FRAGMENTS];
+    static GLint src_len[MAX_SHADER_FRAGMENTS];
+    static int src_allocated[MAX_SHADER_FRAGMENTS];
 
     // Create empty shader object
     GLuint shader = glCreateShader(type_from_str(shader_type));
@@ -107,30 +193,84 @@ GLuint compile_shader(const char *shader_src, size_t shader_src_len,
     // Because most of our src fragments are null-terminated, we set the whole
     // array of src_lens to -1 by default.
     for (size_t i = 0; i < MAX_SHADER_FRAGMENTS; i++) {
-        src_lens[i] = -1;
+        src_len[i] = -1;
     }
+
+    // Because debug builds allocate from the heap to load files, we must keep
+    // track, and free after sources are loaded.
+    memset(src_allocated, 0, sizeof(int) * MAX_SHADER_FRAGMENTS);
 
     // Iterate defines and inject #define directives right after an injected
     // #version -directive.
-    size_t i = 0;
-    src[i++] = GLSL_VERSION;
+    size_t frag_idx = 0;
+    src[frag_idx++] = GLSL_VERSION;
     if (defines) {
         for (size_t j = 0; j < n_defs; j++) {
-            assert(i + 4 < MAX_SHADER_FRAGMENTS);
-            src[i++] = "#define ";
-            src[i++] = defines[j].name;
-            src[i++] = " ";
-            src[i++] = defines[j].value;
-            src[i++] = "\n";
+            assert(frag_idx + 4 < MAX_SHADER_FRAGMENTS);
+            src[frag_idx++] = "#define ";
+            src[frag_idx++] = defines[j].name;
+            src[frag_idx++] = " ";
+            src[frag_idx++] = defines[j].value;
+            src[frag_idx++] = "\n";
         }
     }
-    assert(i < MAX_SHADER_FRAGMENTS);
-    // Remember to add shader_src_len to the right slot in src_lens, as
-    // shader_src is not null terminated (it is read from disk or executable)
-    src_lens[i] = shader_src_len;
-    src[i++] = shader_src;
 
-    glShaderSource(shader, i, src, src_lens);
+    // Iterate shader until all includes processed
+    size_t start = 0, end = 0, total = 0;
+    const char *include_name = NULL;
+    while (total < shader_src_len &&
+           (include_name = find_include(
+                shader_src + total, shader_src_len - total, &start, &end))) {
+
+        // Found #include in shader
+        // If there is content before directive, "paste" it here
+        if (start) {
+            assert(frag_idx < MAX_SHADER_FRAGMENTS);
+            src_len[frag_idx] = start;
+            src[frag_idx++] = shader_src + total;
+        }
+
+        // Read the file that was requested and "paste" it here
+        char *include_src = NULL;
+        size_t include_src_len = read_file(include_name, &include_src);
+        if (include_src_len) {
+            assert(frag_idx < MAX_SHADER_FRAGMENTS);
+            src_len[frag_idx] = include_src_len;
+#ifdef DEBUG
+            src_allocated[frag_idx] = GL_TRUE;
+#endif
+            src[frag_idx++] = include_src;
+        } else {
+            printf("Warning: failed to read included file %s\n", include_name);
+        }
+
+        // Keep track of progress so that next iteration only searches the
+        // remaining source code fragment.
+        total += end;
+    }
+
+    // Finally, "paste" the remaining shader code here, it doesn't contain any
+    // #include directives.
+    if (total < shader_src_len) {
+        assert(frag_idx < MAX_SHADER_FRAGMENTS);
+        src_len[frag_idx] = shader_src_len - total;
+        src[frag_idx++] = shader_src + total;
+    }
+
+    // Load the sources "into" OpenGL driver. Our burden is now over.
+    glShaderSource(shader, frag_idx, src, src_len);
+
+#ifdef DEBUG
+    // Because debug builds allocate from the heap to load files, we must keep
+    // track, and free after sources are loaded.
+    for (size_t i = 0; i < MAX_SHADER_FRAGMENTS; i++) {
+        if (src_allocated[i]) {
+            free((void *)src[i]);
+        }
+    }
+#endif
+
+    // Compile.
     glCompileShader(shader);
 
     // Check and report errors
