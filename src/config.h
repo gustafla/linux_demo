@@ -16,8 +16,8 @@
 // Maximum number of supported shader code "parts" or fragments that can
 // be concatenated in a single call to compile_shader. Increase this value if
 // the limit is hit in your usage. Every additional injected #define adds 5
-// fragments, for example.
-#define MAX_SHADER_FRAGMENTS 16
+// fragments, every #include adds 3.
+#define MAX_SHADER_FRAGMENTS 64
 
 // GLSL_VERSION is prefixed to every shader, change it if you need some other
 // version than specified here.

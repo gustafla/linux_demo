@@ -4,6 +4,7 @@
 #include "gl.h"
 #include "uniforms.h"
 #include <SDL2/SDL_log.h>
+#include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -114,7 +115,8 @@ GLuint compile_shader(const char *shader_src, size_t shader_src_len,
     size_t i = 0;
     src[i++] = GLSL_VERSION;
     if (defines) {
-        for (size_t j = 0; j < n_defs && i + 5 < MAX_SHADER_FRAGMENTS; j++) {
+        for (size_t j = 0; j < n_defs; j++) {
+            assert(i + 4 < MAX_SHADER_FRAGMENTS);
             src[i++] = "#define ";
             src[i++] = defines[j].name;
             src[i++] = " ";
@@ -122,6 +124,7 @@ GLuint compile_shader(const char *shader_src, size_t shader_src_len,
             src[i++] = "\n";
         }
     }
+    assert(i < MAX_SHADER_FRAGMENTS);
     // Remember to add shader_src_len to the right slot in src_lens, as
     // shader_src is not null terminated (it is read from disk or executable)
     src_lens[i] = shader_src_len;
