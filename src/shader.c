@@ -101,15 +101,6 @@ const char *find_include(const char *shader_src, const size_t shader_src_len,
     for (char *tok = strtok(buf, "\n"); tok; tok = strtok(NULL, "\n")) {
         // If line starts with #include
         if (strncmp(tok, "#include ", 9) == 0) {
-            // Write start and end offsets for caller parser
-            *start = tok - buf;
-            char *line_end = strchr(tok, 0);
-            if (line_end) {
-                *end = (line_end - buf) + 1;
-            } else {
-                *end = shader_src_len;
-            }
-
             // Find first " on line
             char *quot1 = strchr(tok, '"');
             if (!quot1) {
@@ -128,6 +119,15 @@ const char *find_include(const char *shader_src, const size_t shader_src_len,
             if (len >= MAX_INCLUDE_NAME_LEN) {
                 printf("Too long include filename: %zu\n", len);
                 continue;
+            }
+
+            // Write start and end offsets for caller parser
+            *start = tok - buf;
+            char *line_end = strchr(quot2, 0);
+            if (line_end) {
+                *end = (line_end - buf) + 1;
+            } else {
+                *end = shader_src_len;
             }
 
             // Copy filename to static buffer
