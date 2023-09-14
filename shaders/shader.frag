@@ -24,6 +24,8 @@ uniform sampler2D u_FeedbackSampler;
 #define PI 3.14159265
 #define EPSILON 0.001
 
+#include "shaders/sdf.glsl"
+
 float aspectRatio() {
     return u_Resolution.x / u_Resolution.y;
 }
@@ -38,15 +40,6 @@ mat3 viewMatrix() {
 vec3 cameraRay() {
     float c = tan((90. - cam.fov / 2.) * (PI / 180.));
     return normalize(vec3(FragCoord * vec2(aspectRatio(), 1.), c));
-}
-
-float sdSphere( vec3 p, float s ) {
-    return length(p)-s;
-}
-
-float sdTorus(vec3 p, vec2 t) {
-    vec2 q = vec2(length(p.xz)-t.x,p.y);
-    return length(q)-t.y;
 }
 
 float sdf(vec3 p) {
