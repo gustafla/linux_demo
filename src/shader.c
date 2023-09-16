@@ -117,7 +117,7 @@ const char *find_include(const char *shader_src, const size_t shader_src_len,
             // Check if fits in filename buffer
             size_t len = quot2 - namestart;
             if (len >= MAX_INCLUDE_NAME_LEN) {
-                printf("Too long include filename: %zu\n", len);
+                SDL_Log("Too long include filename: %s\n", tok);
                 continue;
             }
 
@@ -141,29 +141,6 @@ const char *find_include(const char *shader_src, const size_t shader_src_len,
 
     free(buf);
     return NULL;
-}
-
-// This function is used only for debug builds. It prints
-// everything that glShaderSource is going to receive.
-void print_src(const char **src, GLint *len, size_t n) {
-    printf("\n");
-    for (size_t i = 0; i < n; i++) {
-        printf("len[%zu] == %d\n", i, len[i]);
-    }
-    for (size_t i = 0; i < n; i++) {
-        if (!src[i]) {
-            printf("src[%zu] == NULL\n", i);
-            continue;
-        }
-        if (len[i] == -1) {
-            printf("%s", src[i]);
-        } else {
-            for (size_t j = 0; j < (size_t)len[i]; j++) {
-                putchar(src[i][j]);
-            }
-        }
-    }
-    printf("\n");
 }
 
 // This function preprocesses and compiles a shader.
@@ -244,7 +221,7 @@ GLuint compile_shader(const char *shader_src, size_t shader_src_len,
 #endif
             src[frag_idx++] = include_src;
         } else {
-            printf("Warning: failed to read included file %s\n", include_name);
+            SDL_Log("Warning: failed to read included file %s\n", include_name);
         }
 
         // Keep track of progress so that next iteration only searches the
@@ -259,10 +236,6 @@ GLuint compile_shader(const char *shader_src, size_t shader_src_len,
         src_len[frag_idx] = shader_src_len - total;
         src[frag_idx++] = shader_src + total;
     }
-
-#ifdef DEBUG
-    print_src(src, src_len, frag_idx);
-#endif
 
     // Load the sources "into" OpenGL driver. Our burden is now over.
     glShaderSource(shader, frag_idx, src, src_len);

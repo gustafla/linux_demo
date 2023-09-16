@@ -71,6 +71,21 @@ static int poll_events(demo_t *demo, struct sync_device *rocket) {
     return 1;
 }
 
+// Connects rocket while keeping SDL events polled. Returns 1 when successful,
+// 0 when unsuccessful.
+static int connect_rocket(struct sync_device *rocket, demo_t *demo) {
+    SDL_Log("Connecting to Rocket editor...\n");
+    while (sync_tcp_connect(rocket, "localhost", SYNC_DEFAULT_PORT)) {
+        // Check exit events while waiting for Rocket connection
+        if (!poll_events(demo, rocket)) {
+            return 0;
+        }
+        SDL_Delay(200);
+    }
+    SDL_Log("Connected.\n");
+    return 1;
+}
+
 int main(int argc, char *argv[]) {
     // Initialize SDL
     // This is required to get OpenGL and audio to work
@@ -160,15 +175,9 @@ int main(int argc, char *argv[]) {
 
 #ifdef DEBUG
     // Connect rocket
-    SDL_Log("Connecting to Rocket editor...\n");
-    while (sync_tcp_connect(rocket, "localhost", SYNC_DEFAULT_PORT)) {
-        // Check exit events while waiting for Rocket connection
-        if (!poll_events(demo, rocket)) {
-            return 0;
-        }
-        SDL_Delay(200);
+    if (!connect_rocket(rocket, demo)) {
+        return 0;
     }
-    SDL_Log("Connected.\n");
 #else
     // Set rocket io callback
     sync_set_io_cb(rocket, &rocket_iocb);
@@ -177,21 +186,36 @@ int main(int argc, char *argv[]) {
     // Here starts the demo's main loop
     player_pause(player, 0);
     while (poll_events(demo, rocket)) {
-#ifndef DEBUG
-        // Quit the demo when music ends
-        if (player_at_end(player)) {
-            break;
-        }
-#endif
-
         // Get time from music player
-        double rocket_row = player_get_time(player) * ROW_RATE;
+        double time = player_get_time(player);
+        double rocket_row = time * ROW_RATE;
 
 #ifdef DEBUG
-        // Update rocket
-        if (sync_update(rocket, (int)rocket_row, &rocket_callbacks,
-                        (void *)player)) {
-            SDL_Log("Rocket disconnected\n");
+        // Update rocket in a loop until timed out or row changes.
+        // This can cause a net delay up to n * m milliseconds, where
+        // n = 10 (hardcoded loop) and m = 20 (hardcoded SDL_Delay call).
+        // Total 200 ms may be blocked to save power when nothing is changing
+        // in the editor.
+        for (int i = 0; i < 10; i++) {
+            if (sync_update(rocket, (int)rocket_row, &rocket_callbacks,
+                            (void *)player)) {
+                SDL_Log("Rocket disconnected\n");
+                if (!connect_rocket(rocket, demo)) {
+                    return 0; // how many layers of nesting are you on
+                    // like, maybe 5, or 6 right now. my dude
+                }
+            }
+            // After previous update, if player time has changed (due to seek
+            // or unpause), don't continue delaying, go render.
+            if (player_is_playing(player) || player_get_time(player) != time) {
+                break;
+            }
+            // Delay
+            SDL_Delay(20);
+        }
+#else
+        // Quit the demo when music ends
+        if (player_at_end(player)) {
             break;
         }
 #endif
