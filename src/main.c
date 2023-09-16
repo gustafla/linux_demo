@@ -73,6 +73,7 @@ static int poll_events(demo_t *demo, struct sync_device *rocket) {
 
 // Connects rocket while keeping SDL events polled. Returns 1 when successful,
 // 0 when unsuccessful.
+#ifdef DEBUG
 static int connect_rocket(struct sync_device *rocket, demo_t *demo) {
     SDL_Log("Connecting to Rocket editor...\n");
     while (sync_tcp_connect(rocket, "localhost", SYNC_DEFAULT_PORT)) {
@@ -85,6 +86,7 @@ static int connect_rocket(struct sync_device *rocket, demo_t *demo) {
     SDL_Log("Connected.\n");
     return 1;
 }
+#endif
 
 int main(int argc, char *argv[]) {
     // Initialize SDL
