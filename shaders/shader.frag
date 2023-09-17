@@ -32,7 +32,7 @@ float aspectRatio() {
 
 mat3 viewMatrix() {
 	vec3 f = normalize(cam.target - cam.pos);
-	vec3 s = cross(f, vec3(0., 1., 0.));
+	vec3 s = normalize(cross(f, vec3(0., 1., 0.)));
 	vec3 u = cross(s, f);
     return mat3(s, u, f);
 }
