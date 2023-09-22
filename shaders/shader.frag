@@ -12,6 +12,7 @@ in vec2 FragCoord;
 uniform float u_RocketRow;
 uniform vec2 u_Resolution;
 uniform float r_MotionBlur;
+uniform float r_AnimationTime;
 
 uniform r_Cam {
     float fov;
@@ -19,10 +20,23 @@ uniform r_Cam {
     vec3 target;
 } cam;
 
+uniform r_Sky {
+    vec3 color1;
+    vec3 color2;
+    vec2 brightness;
+} u_sky;
+
 uniform sampler2D u_FeedbackSampler;
 
 #define PI 3.14159265
 #define EPSILON 0.001
+
+mat2 rotation(float a) {
+    return mat2(
+        cos(a), -sin(a),
+        sin(a), cos(a)
+    );
+}
 
 #include "shaders/sdf.glsl"
 
@@ -47,7 +61,7 @@ float motion(vec2 st, float phase) {
     return sin(st.x + phase);
 }
 
-#define OCTAVES 3
+#define OCTAVES 4
 float fbm (vec2 st) {
     // Initial values
     float value = 0.0;
@@ -55,22 +69,40 @@ float fbm (vec2 st) {
 
     // Loop of octaves
     for (int i = 0; i < OCTAVES; i++) {
-        value += pow(1. - abs(motion(st, amplitude * 3.14)), 2.5);
+        value += pow(1. - abs(motion(st, amplitude * 3.14) * amplitude), 2.5);
         st *= 2.;
         amplitude *= .5;
     }
     return value;
-}    
+}
+
+float sdMtn(vec3 p) {
+    p.y -= fbm(p.xz / 40.) * 3.4;
+    p.y += length(p.xz) * 0.7 + sin(p.x / 10.) * 3.;
+    return sdPlaneXZ(p);
+}
+
+float sdSea(vec3 p) {
+    p.y -= sin(p.x * 0.125 + r_AnimationTime) * 1.;
+    p.xz = rotation(.1) * p.xz;
+    p.y -= sin(p.x * 0.25 + r_AnimationTime) * 0.5;
+    p.xz = rotation(.5) * p.xz;
+    p.y -= sin(p.x * 0.5 + r_AnimationTime) * 0.25;
+    p.xz = rotation(.5) * p.xz;
+    p.y -= sin(p.x * 2. + r_AnimationTime) * 0.125;
+    p.xz = rotation(.1) * p.xz;
+    p.y -= sin(p.x * 4. + r_AnimationTime) * 0.0625;
+    return sdPlaneXZ(p);
+}
 
 float sdf(vec3 p) {
-    p.y -= fbm(p.xz / 40.) * 1.4;
-    return sdPlaneXZ(p);
+    return min(sdMtn(p - vec3(0., 20., 0)), sdSea(p));
 }
 
 #include "shaders/march.glsl"
 
 vec3 sky(vec3 v) {
-    return mix(vec3(0.753, 0.718, 0.690), vec3(0.302, 0.439, 0.651), vec3(pow(clamp(v.y * 0.5 + 0.5, 0., 1.), 0.4)));
+    return mix(u_sky.color1 * u_sky.brightness.x, u_sky.color2 * u_sky.brightness.y, vec3(pow(clamp(v.y * 0.5 + 0.5, 0., 1.), 0.4)));
 }
 
 void main() {
@@ -85,7 +117,8 @@ void main() {
 
     vec3 surfaceColor = vec3(1.) * ndotl;
 
-    FragColor = vec4(mix(surfaceColor, sky(ray), clamp(t / 100., 0., 1.)), 1.);
+    FragColor = vec4(mix(surfaceColor, sky(ray), clamp(t / 200. - 1., 0., 1.)), 1.);
+    //FragColor = vec4(surfaceColor, 1.);
     //FragColor = vec4(vec3(fbm(FragCoord * 10.)), 1.);
 }
 

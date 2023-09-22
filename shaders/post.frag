@@ -60,5 +60,8 @@ void main() {
     // Add noise
     color += texelFetch(u_NoiseSampler, ivec2(gl_FragCoord.xy) % u_NoiseSize, 0).rgb * 0.08 - 0.04;
 
+    // Vignette
+    color -= length(FragCoord) * 0.1;
+
     FragColor = vec4(color, 1.);
 }

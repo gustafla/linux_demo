@@ -9,10 +9,13 @@ vec3 normal(vec3 p) {
 float march(vec3 o, vec3 d) {
     float t = EPSILON;
     float dist = 0.;
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 128; i++) {
         dist = sdf(o + d * t);
         t += dist * (1. - EPSILON);
         if (dist < EPSILON) {
+            break;
+        }
+        if (t > 1024.) {
             break;
         }
     }
