@@ -105,6 +105,16 @@ vec3 sky(vec3 v) {
     return mix(u_sky.color1 * u_sky.brightness.x, u_sky.color2 * u_sky.brightness.y, vec3(pow(clamp(v.y * 0.5 + 0.5, 0., 1.), 0.4)));
 }
 
+vec3 light(vec3 n, vec3 l, vec3 v) {
+    float ndotl = max(dot(-n, l), 0.);
+    vec3 h = normalize(l + v);
+
+    float kS = specular();
+    float kD = 1. - kS;
+
+    return vec3(1.) * ndotl;
+}
+
 void main() {
     vec3 ray = viewMatrix() * cameraRay(); 
     vec3 l = vec3(0., -1., 0.);
@@ -113,11 +123,10 @@ void main() {
     vec3 pos = cam.pos + ray * t;
 
     vec3 normal = normal(pos);
-    float ndotl = max(dot(-normal, l), 0.);
 
-    vec3 surfaceColor = vec3(1.) * ndotl;
+    vec3 directLight = light(normal, l, ray);
 
-    FragColor = vec4(mix(surfaceColor, sky(ray), clamp(t / 200. - 1., 0., 1.)), 1.);
+    FragColor = vec4(mix(directLight, sky(ray), clamp(t / 200. - 1., 0., 1.)), 1.);
     //FragColor = vec4(surfaceColor, 1.);
     //FragColor = vec4(vec3(fbm(FragCoord * 10.)), 1.);
 }
