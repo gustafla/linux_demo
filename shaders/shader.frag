@@ -29,6 +29,7 @@ uniform r_Sky {
 uniform sampler2D u_FeedbackSampler;
 
 #define PI 3.14159265
+#define RECIPROCAL_PI 0.318309886184
 #define EPSILON 0.001
 
 mat2 rotation(float a) {
@@ -105,32 +106,73 @@ vec3 sky(vec3 v) {
     return mix(u_sky.color1 * u_sky.brightness.x, u_sky.color2 * u_sky.brightness.y, vec3(pow(clamp(v.y * 0.5 + 0.5, 0., 1.), 0.4)));
 }
 
-vec3 light(vec3 n, vec3 l, vec3 v) {
-    float ndotl = max(dot(-n, l), 0.);
-    vec3 h = normalize(l + v);
+vec3 fresnelSchlick(float cosTheta, vec3 F0) {
+    return F0 + (1. - F0) * pow(1.0 - cosTheta, 5.);
+}
 
-    float kS = specular();
-    float kD = 1. - kS;
+float D_GGX(float NdotH, float roughness) {
+    float alpha = roughness * roughness;
+    float alpha2 = alpha * alpha;
+    float NdotH2 = NdotH * NdotH;
+    float b = NdotH2 * (alpha2 - 1.) + 1.;
+    return alpha2 * RECIPROCAL_PI / (b * b);
+}
 
-    return vec3(1.) * ndotl;
+float G1_GGX_Schlick(float NdotV, float roughness) {
+    float alpha = roughness * roughness;
+    float k = alpha / 2.;
+    return max(NdotV, EPSILON) / (NdotV * (1. - k) + k);
+}
+
+float G_Smith(float NdotV, float NdotL, float roughness) {
+    return G1_GGX_Schlick(NdotL, roughness) * G1_GGX_Schlick(NdotV, roughness);
+}
+
+vec3 brdf(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 baseColor, float reflectance) {
+    vec3 H = normalize(V + L);
+    float NdotV = clamp(dot(N, V), 0., 1.0);
+    float NdotL = clamp(dot(N, L), 0., 1.0);
+    float NdotH = clamp(dot(N, H), 0., 1.0);
+    float VdotH = clamp(dot(V, H), 0., 1.0);
+
+    vec3 f0 = vec3(0.16 * (reflectance * reflectance));
+    f0 = mix(f0, baseColor, metallic);
+
+    vec3 F = fresnelSchlick(VdotH, f0);
+    float D = D_GGX(NdotH, roughness);
+    float G = G_Smith(NdotV, NdotL, roughness);
+
+    vec3 spec = (F * D * G) / (4. * max(NdotV, EPSILON) * max(NdotL, EPSILON));
+
+    vec3 rhoD = baseColor;
+    rhoD *= vec3(1.) - F;
+    rhoD *= (1. - metallic);
+    vec3 diff = rhoD * RECIPROCAL_PI;
+
+    return diff + spec;
 }
 
 void main() {
     vec3 ray = viewMatrix() * cameraRay(); 
     vec3 l = vec3(0., -1., 0.);
 
+    // Spheretrace surface in view
     float t = march(cam.pos, ray);
     vec3 pos = cam.pos + ray * t;
-
     vec3 normal = normal(pos);
 
-    vec3 directLight = light(normal, l, ray);
+    // Compute direct lighting
+    vec3 lightDir = normalize(-l);
+    vec3 lightColor = vec3(6.);
+    vec3 baseColor = vec3(0.5); // albedo for dielectrics or F0 for metals
+    float roughness = 0.4;
+    float metallic = 0.;
+    float reflectance = 0.4;
 
-    FragColor = vec4(mix(directLight, sky(ray), clamp(t / 200. - 1., 0., 1.)), 1.);
-    //FragColor = vec4(surfaceColor, 1.);
-    //FragColor = vec4(vec3(fbm(FragCoord * 10.)), 1.);
+    vec3 radiance = vec3(0.); // No emissive surfaces
+    float irradiance = max(dot(lightDir, normal), 0.); // Light received by the surface
+    vec3 brd = brdf(lightDir, ray, normal, metallic, roughness, baseColor, reflectance);
+    radiance += irradiance * brd * lc;
+
+    FragColor = vec4(mix(radiance, sky(ray), clamp(t / 200. - 1., 0., 1.)), 1.);
 }
-
-    //vec2 uv = FragCoord * 0.5 + 0.5;
-    //vec3 previousFrameColor = texture2D(u_FeedbackSampler, uv).rgb;
-    //FragColor = vec4(mix(finalColor, previousFrameColor, r_MotionBlur), 1.);
