@@ -175,15 +175,18 @@ void main() {
     vec3 lightDir = normalize(-l);
     vec3 viewDir = normalize(-ray);
     vec3 lightColor = vec3(6.);
-    vec3 baseColor = vec3(1.022, 0.782, 0.344); // albedo for dielectrics or F0 for metals
-    float roughness = 1.0;
+    vec3 baseColor = vec3(1.); // albedo for dielectrics or F0 for metals
+    float roughness = 0.4;
     float metallic = 0.;
-    float reflectance = 0.;
+    float reflectance = 1.;
 
     vec3 radiance = vec3(0.); // No emissive surfaces
     float irradiance = max(dot(lightDir, normal), 0.); // Light received by the surface
     vec3 brd = brdf(lightDir, viewDir, normal, metallic, roughness, baseColor, reflectance);
     radiance += irradiance * brd * lightColor;
+
+    // Add a bit of fresnel reflectance effect from sky light
+    radiance += fresnelSchlick(dot(viewDir, normal), vec3(0.16)) * u_sky.color1 * u_sky.brightness.x * reflectance;
 
     FragColor = vec4(mix(radiance, sky(ray), clamp(t / 200. - 1., 0., 1.)), 1.);
 }
