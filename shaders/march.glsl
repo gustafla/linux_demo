@@ -6,18 +6,21 @@ vec3 normal(vec3 p) {
     ));
 }
 
-float march(vec3 o, vec3 d) {
-    float t = EPSILON;
+vec2 march(vec3 o, vec3 d, vec3 param) {
+    float t = param.x;
     float dist = 0.;
+    float shadow = 1.;
     for (int i = 0; i < 128; i++) {
         dist = sdf(o + d * t);
         t += dist * (1. - EPSILON);
+        shadow = min(shadow, param.z * dist / t);
         if (dist < EPSILON) {
+            shadow = 0.;
             break;
         }
-        if (t > 1024.) {
+        if (t > param.y) {
             break;
         }
     }
-    return t;
+    return vec2(t, shadow);
 }

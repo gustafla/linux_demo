@@ -129,16 +129,17 @@ float G_Smith(float NdotV, float NdotL, float roughness) {
 
 vec3 brdf(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 baseColor, float reflectance) {
     // Cook-Torrance Microfacet BRDF
-    // is a sum of diffuse (which is just material albedo divided by pi)
-    // and a specular part, which is a product of Fresnel reflectance,
+    // is a sum of diffuse and a specular part.
+    // Specular is a product of Fresnel reflectance,
     // normal distribution function and a geomertry term (microfacet shadowing)
-    // divided by the product of n dot l and n dot v
+    // divided by the product of n dot l and n dot v.
     
     vec3 H = normalize(V + L);
-    float NdotV = clamp(dot(N, V), 0., 1.0);
-    float NdotL = clamp(dot(N, L), 0., 1.0);
-    float NdotH = clamp(dot(N, H), 0., 1.0);
-    float VdotH = clamp(dot(V, H), 0., 1.0);
+    float NdotV = clamp(dot(N, V), EPSILON, 1.0);
+    float NdotL = clamp(dot(N, L), EPSILON, 1.0);
+    float NdotH = clamp(dot(N, H), EPSILON, 1.0);
+    float VdotH = clamp(dot(V, H), EPSILON, 1.0);
+    float LdotV = clamp(dot(L, V), EPSILON, 1.0);
 
     vec3 f0 = vec3(0.16 * (reflectance * reflectance));
     f0 = mix(f0, baseColor, metallic);
@@ -152,17 +153,25 @@ vec3 brdf(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 baseColo
     vec3 rhoD = baseColor;
     rhoD *= vec3(1.) - F;
     rhoD *= (1. - metallic);
-    vec3 diff = rhoD / PI;
+    //https://github.com/ranjak/opengl-tutorial/blob/master/shaders/illumination/diramb_orennayar_pcn.vert
+    float sigma = roughness;
+    float sigma2 = sigma*sigma;
+    float termA = 1.0 - 0.5 * sigma2 / (sigma2 + 0.57);
+    float termB = 0.45 * sigma2 / (sigma2 + 0.09);
+    float cosAzimuthSinaTanb = (LdotV - NdotV * NdotL) / max(NdotV, NdotL);
+    vec3 diff = rhoD * (termA + termB * max(0.0, cosAzimuthSinaTanb)) / PI;
+    //vec3 diff = rhoD / PI;
 
     return diff + spec;
 }
 
 void main() {
     vec3 ray = viewMatrix() * cameraRay(); 
-    vec3 l = vec3(sin(r_AnimationTime), -1., cos(r_AnimationTime));
+    //vec3 l = vec3(sin(r_AnimationTime*0.1), -1., cos(r_AnimationTime*0.1)* 3.);
+    vec3 l = vec3(sin(r_AnimationTime*0.1)*10., -4., cos(r_AnimationTime*0.1)*10.);
 
     // Spheretrace surface in view
-    float t = march(cam.pos, ray);
+    float t = march(cam.pos, ray, vec3(EPSILON, 1024., 0.)).x;
     vec3 pos = cam.pos + ray * t;
     vec3 normal = normal(pos);
 
@@ -176,17 +185,20 @@ void main() {
     vec3 viewDir = normalize(-ray);
     vec3 lightColor = vec3(6.);
     vec3 baseColor = vec3(1.); // albedo for dielectrics or F0 for metals
-    float roughness = 0.4;
+    float roughness = r_AnimationTime / 128.;
     float metallic = 0.;
-    float reflectance = 1.;
+    float reflectance = 0.4;
+
+    // Trace shadow
+    float shadow = clamp(march(pos, lightDir, vec3(1.4, 1024., 30.)).y, 0., 1.) * 1.;
 
     vec3 radiance = vec3(0.); // No emissive surfaces
     float irradiance = max(dot(lightDir, normal), 0.); // Light received by the surface
     vec3 brd = brdf(lightDir, viewDir, normal, metallic, roughness, baseColor, reflectance);
-    radiance += irradiance * brd * lightColor;
+    radiance += irradiance * brd * lightColor * shadow;
 
     // Add a bit of fresnel reflectance effect from sky light
-    radiance += fresnelSchlick(dot(viewDir, normal), vec3(0.16)) * u_sky.color1 * u_sky.brightness.x * reflectance;
+    //radiance += fresnelSchlick(dot(viewDir, normal), vec3(0.16)) * u_sky.color1 * u_sky.brightness.x * reflectance;
 
     FragColor = vec4(mix(radiance, sky(ray), clamp(t / 200. - 1., 0., 1.)), 1.);
 }
