@@ -1,20 +1,20 @@
 vec3 normal(vec3 p) {
     return normalize(vec3(
-        sdf(vec3(p.x + EPSILON, p.y, p.z)) - sdf(vec3(p.x - EPSILON, p.y, p.z)),
-        sdf(vec3(p.x, p.y + EPSILON, p.z)) - sdf(vec3(p.x, p.y - EPSILON, p.z)),
-        sdf(vec3(p.x, p.y, p.z  + EPSILON)) - sdf(vec3(p.x, p.y, p.z - EPSILON))
+        sdf(vec3(p.x + EPSILON, p.y, p.z)).x - sdf(vec3(p.x - EPSILON, p.y, p.z)).x,
+        sdf(vec3(p.x, p.y + EPSILON, p.z)).x - sdf(vec3(p.x, p.y - EPSILON, p.z)).x,
+        sdf(vec3(p.x, p.y, p.z  + EPSILON)).x - sdf(vec3(p.x, p.y, p.z - EPSILON)).x
     ));
 }
 
-vec2 march(vec3 o, vec3 d, vec3 param) {
+vec3 march(vec3 o, vec3 d, vec3 param) {
     float t = param.x;
-    float dist = 0.;
+    vec2 dist = vec2(0.);
     float shadow = 1.;
-    for (int i = 0; i < 128; i++) {
+    for (int i = 0; i < 256; i++) {
         dist = sdf(o + d * t);
-        t += dist * (1. - EPSILON);
-        shadow = min(shadow, param.z * dist / t);
-        if (dist < EPSILON) {
+        t += dist.x * 0.5;
+        shadow = min(shadow, param.z * dist.x / t);
+        if (dist.x < EPSILON) {
             shadow = 0.;
             break;
         }
@@ -22,5 +22,5 @@ vec2 march(vec3 o, vec3 d, vec3 param) {
             break;
         }
     }
-    return vec2(t, shadow);
+    return vec3(t, dist.y, shadow);
 }

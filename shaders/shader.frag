@@ -76,27 +76,48 @@ float fbm (vec2 st) {
     return value;
 }
 
-float sdMtn(vec3 p) {
+const vec3 MTL_COLORS[] = vec3[](
+    vec3(0.03, 0.05, 0.1),
+    vec3(0.9),
+    vec3(0.5)
+);
+
+// x = roughness, y = metalness, z = reflectance
+const vec3 MTL_PARAMS[] = vec3[](
+    vec3(0.1, 1., 0.),
+    vec3(0.2, 0., 1.),
+    vec3(0.8, 0., 0.1)
+);
+
+vec2 sdMtn(vec3 p) {
     p.y -= fbm(p.xz / 40.) * 3.4;
     p.y += length(p.xz) * 0.7 + sin(p.x / 10.) * 3.;
-    return sdPlaneXZ(p);
+    float stripes = clamp(sin(p.x) * 1000., 0.0, 1.);
+    return vec2(sdPlaneXZ(p), stripes + 1.);
 }
 
-float sdSea(vec3 p) {
-    p.y -= sin(p.x * 0.125 + r_AnimationTime) * 1.;
+vec2 sdSea(vec3 p) {
+    p.y += sin(p.z * 0.225 + r_AnimationTime) * 1.;
+    p.y += sin(p.z * 0.15 + r_AnimationTime) * 0.6;
+    p.y += sin(p.x * 0.125 + r_AnimationTime) * 1.;
     p.xz = rotation(.1) * p.xz;
-    p.y -= sin(p.x * 0.25 + r_AnimationTime) * 0.5;
-    p.xz = rotation(.5) * p.xz;
-    p.y -= sin(p.x * 0.5 + r_AnimationTime) * 0.25;
-    p.xz = rotation(.5) * p.xz;
-    p.y -= sin(p.x * 2. + r_AnimationTime) * 0.125;
-    p.xz = rotation(.1) * p.xz;
-    p.y -= sin(p.x * 4. + r_AnimationTime) * 0.0625;
-    return sdPlaneXZ(p);
+    p.y += abs(sin(p.x * 0.25 + r_AnimationTime)) * 0.5;
+    p.xz = rotation(.6) * p.xz;
+    p.y += abs(sin(p.x * 0.5 + r_AnimationTime)) * 0.25;
+    p.xz = rotation(.9) * p.xz;
+    p.y += abs(sin(p.x + r_AnimationTime)) * 0.125;
+    return vec2(sdPlaneXZ(p), 0.);
 }
 
-float sdf(vec3 p) {
-    return min(sdMtn(p - vec3(0., 20., 0)), sdSea(p));
+vec2 sdfUnion(vec2 a, vec2 b) {
+    if (a.x < b.x) {
+        return a;
+    }
+    return b;
+};
+
+vec2 sdf(vec3 p) {
+    return sdfUnion(sdMtn(p - vec3(0., 20., 0)), sdSea(p));
 }
 
 #include "shaders/march.glsl"
@@ -171,8 +192,8 @@ void main() {
     vec3 l = vec3(sin(r_AnimationTime*0.1)*10., -4., cos(r_AnimationTime*0.1)*10.);
 
     // Spheretrace surface in view
-    float t = march(cam.pos, ray, vec3(EPSILON, 1024., 0.)).x;
-    vec3 pos = cam.pos + ray * t;
+    vec3 t = march(cam.pos, ray, vec3(EPSILON, 1024., 20.));
+    vec3 pos = cam.pos + ray * t.x;
     vec3 normal = normal(pos);
 
     // Compute direct lighting
@@ -184,21 +205,29 @@ void main() {
     vec3 lightDir = normalize(-l);
     vec3 viewDir = normalize(-ray);
     vec3 lightColor = vec3(6.);
-    vec3 baseColor = vec3(1.); // albedo for dielectrics or F0 for metals
-    float roughness = r_AnimationTime / 128.;
-    float metallic = 0.;
-    float reflectance = 0.4;
 
-    // Trace shadow
-    float shadow = clamp(march(pos, lightDir, vec3(1.4, 1024., 30.)).y, 0., 1.) * 1.;
+    int mtlID = int(t.y);
+    vec3 baseColor = MTL_COLORS[mtlID];
+    float roughness = MTL_PARAMS[mtlID].x;
+    float metallic = MTL_PARAMS[mtlID].y;
+    float reflectance = MTL_PARAMS[mtlID].z;
 
     vec3 radiance = vec3(0.); // No emissive surfaces
-    float irradiance = max(dot(lightDir, normal), 0.); // Light received by the surface
-    vec3 brd = brdf(lightDir, viewDir, normal, metallic, roughness, baseColor, reflectance);
-    radiance += irradiance * brd * lightColor * shadow;
+    if (mtlID == 0) { // if shading water
+        vec3 fresnel = fresnelSchlick(dot(normal, viewDir), vec3(0.02));
+        
+        vec3 diffuse = MTL_COLORS[mtlID] * (1. - fresnel);
+        radiance += diffuse + fresnel;
+    } else {
+        // Trace shadow
+        float shadow = clamp(march(pos, lightDir, vec3(1., 1024., 30.)).z, 0., 1.);
+        float irradiance = max(dot(lightDir, normal), 0.); // Light received by the surface
+        vec3 brd = brdf(lightDir, viewDir, normal, metallic, roughness, baseColor, reflectance);
+        radiance += irradiance * brd * lightColor * shadow;
+    }
 
     // Add a bit of fresnel reflectance effect from sky light
     //radiance += fresnelSchlick(dot(viewDir, normal), vec3(0.16)) * u_sky.color1 * u_sky.brightness.x * reflectance;
 
-    FragColor = vec4(mix(radiance, sky(ray), clamp(t / 200. - 1., 0., 1.)), 1.);
+    FragColor = vec4(mix(radiance, sky(ray), clamp(t.x / 200. - 1., 0., 1.)), 1.);
 }
