@@ -204,9 +204,11 @@ void main() {
         vec3 n = normalSea(pos);
         vec3 fresnel = fresnelSchlick(dot(n, -ray), vec3(0.02));
         vec3 rd = refract(ray, n, 1. / 1.333);
+        //lightDir = refract(lightDir, vec3(0., 1., 0.), 1. / 1.333);
         hit = march(pos, rd, vec3(EPSILON, 1024., 20.));
         vec3 rl = light(pos, rd, lightDir, lightColor, int(hit.y));
-        rl *= pow(vec3(0.95, 0.979, 0.98), vec3(hit.x));
+        //rl *= pow(vec3(0.95, 0.979, 0.98), vec3(hit.x));
+        rl *= exp(-vec3(0.01, 0.009, 0.008) * hit.x);
         radiance = mix(rl, sky(n), fresnel);
     } else {
         radiance = light(pos, ray, lightDir, lightColor, int(hit.y));
