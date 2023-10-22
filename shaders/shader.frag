@@ -78,13 +78,13 @@ float fbm (vec2 st) {
 
 const vec3 MTL_COLORS[] = vec3[](
     vec3(0.9),
-    vec3(0.5)
+    vec3(0.56, 0.57, 0.58)
 );
 
 // x = roughness, y = metalness, z = reflectance
 const vec3 MTL_PARAMS[] = vec3[](
-    vec3(0.2, 0., 1.),
-    vec3(0.8, 0., 0.1)
+    vec3(0.1, 0., 0.9),
+    vec3(0.9, 0., 0.1)
 );
 
 vec2 sdMtn(vec3 p) {
@@ -165,57 +165,52 @@ vec3 brdf(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 baseColo
     return diff + spec;
 }
 
-// Compute lighting
+// Compute light output for a world position
 // Rendering Equation:
 // Radiance out to view = Emitted radiance to view
 // + integral (sort of like sum) over the whole hemisphere:
 // brdf(v, l) * incoming irradiance (radiance per area)
-vec3 light(vec3 pos, vec3 lightDir, vec3 normal, vec3 viewDir, vec3 lightColor, int mtlID) {
-    vec3 radiance = vec3(0.); // No emissive surfaces
+vec3 light(vec3 pos, vec3 dir, vec3 l, vec3 lc, int mtlID) {
+    vec3 n = normal(pos);
+    // No emissive surfaces
     vec3 baseColor = MTL_COLORS[mtlID];
     float roughness = MTL_PARAMS[mtlID].x;
     float metallic = MTL_PARAMS[mtlID].y;
     float reflectance = MTL_PARAMS[mtlID].z;
-    float irradiance = max(dot(lightDir, normal), 0.); // Light received by the surface
-    vec3 brd = brdf(lightDir, viewDir, normal, metallic, roughness, baseColor, reflectance);
     // Trace shadow
-    float shadow = clamp(march(pos, lightDir, vec3(1., 1024., 30.)).z, 0., 1.);
-    radiance += irradiance * brd * lightColor * shadow;
-    return radiance;
+    float shadow = clamp(march(pos, l, vec3(1., 1024., 30.)).z, 0., 1.);
+    // Light received by the surface
+    vec3 irradiance = max(dot(l, n), 0.) * shadow + sky(n) * 0.2;
+    vec3 brd = brdf(l, -dir, n, metallic, roughness, baseColor, reflectance);
+    return irradiance * brd * lc;
 }
 
 void main() {
     vec3 ray = viewMatrix() * cameraRay(); 
-    //vec3 l = vec3(sin(r_AnimationTime*0.1), -1., cos(r_AnimationTime*0.1)* 3.);
-    vec3 l = vec3(sin(r_AnimationTime*0.1)*10., -4., cos(r_AnimationTime*0.1)*10.);
+    vec3 lightDir = -normalize(vec3(sin(r_AnimationTime*0.01)*10., -4., cos(r_AnimationTime*0.01)*10.));
+    vec3 lightColor = vec3(6.);
 
     // Spheretrace non-water surfaces in view
-    vec3 t = march(cam.pos, ray, vec3(EPSILON, 1024., 20.));
-    vec3 pos = cam.pos + ray * t.x;
-    vec3 norm = normal(pos);    
-    vec3 lightDir = normalize(-l);
-    vec3 viewDir = normalize(-ray);
-    vec3 lightColor = vec3(6.);
-    int mtlID = int(t.y);
+    vec3 hit = march(cam.pos, ray, vec3(EPSILON, 1024., 20.));
+    vec3 pos = cam.pos + ray * hit.x;
 
     // Trace sea surface separately
     float st = marchSea(cam.pos, ray);
 
+    float fog = clamp(min(st, hit.x) / 200. - 1., 0., 1.);
     vec3 radiance = vec3(0.);
-    if (st < t.x) { // if hit water
+    if (st < hit.x) { // if hit water
         pos = cam.pos + ray * st;
-        norm = normalSea(pos);
-        vec3 fresnel = fresnelSchlick(dot(norm, viewDir), vec3(0.02));
-        vec3 refractedDir = refract(ray, norm, 1. / 1.333);
-        vec3 uwt = march(pos, refractedDir, vec3(EPSILON, 1024., 20.));
-        vec3 uwPos = pos + refractedDir * uwt.x;
-        vec3 uwNormal = normal(uwPos);
-        vec3 subsurface = light(uwPos, lightDir, uwNormal, -refractedDir, lightColor, int(uwt.y)) * (1. - fresnel);
-        radiance = subsurface + fresnel;
+        vec3 n = normalSea(pos);
+        vec3 fresnel = fresnelSchlick(dot(n, -ray), vec3(0.02));
+        vec3 rd = refract(ray, n, 1. / 1.333);
+        hit = march(pos, rd, vec3(EPSILON, 1024., 20.));
+        vec3 rl = light(pos, rd, lightDir, lightColor, int(hit.y));
+        rl *= pow(vec3(0.95, 0.979, 0.98), vec3(hit.x));
+        radiance = mix(rl, sky(n), fresnel);
     } else {
-        radiance = light(pos, lightDir, norm, viewDir, lightColor, mtlID);
+        radiance = light(pos, ray, lightDir, lightColor, int(hit.y));
     }
-    t.x = min(st, t.x);
 
-    FragColor = vec4(mix(radiance, sky(ray), clamp(t.x / 200. - 1., 0., 1.)), 1.);
+    FragColor = vec4(mix(radiance, sky(ray), fog), 1.);
 }
