@@ -77,14 +77,12 @@ float fbm (vec2 st) {
 }
 
 const vec3 MTL_COLORS[] = vec3[](
-    vec3(0.05, 0.7, 0.9),
     vec3(0.9),
     vec3(0.5)
 );
 
 // x = roughness, y = metalness, z = reflectance
 const vec3 MTL_PARAMS[] = vec3[](
-    vec3(0.1, 1., 0.),
     vec3(0.2, 0., 1.),
     vec3(0.8, 0., 0.1)
 );
@@ -93,34 +91,15 @@ vec2 sdMtn(vec3 p) {
     p.y -= 20. + fbm(p.xz / 40.) * 3.4;
     p.y += length(p.xz) * 0.7 + sin(p.x / 10.) * 3.;
     float stripes = clamp(sin(p.x) * 1000., 0.0, 1.);
-    return vec2(sdPlaneXZ(p), stripes + 1.);
+    return vec2(sdPlaneXZ(p), stripes);
 }
-
-vec2 sdSea(vec3 p) {
-    p.y += sin(p.z * 0.225 + r_AnimationTime) * 1.;
-    p.y += sin(p.z * 0.15 + r_AnimationTime) * 0.6;
-    p.y += sin(p.x * 0.125 + r_AnimationTime) * 1.;
-    p.xz = rotation(.1) * p.xz;
-    p.y += abs(sin(p.x * 0.25 + r_AnimationTime)) * 0.5;
-    p.xz = rotation(.6) * p.xz;
-    p.y += abs(sin(p.x * 0.5 + r_AnimationTime)) * 0.25;
-    p.xz = rotation(.9) * p.xz;
-    p.y += abs(sin(p.x + r_AnimationTime)) * 0.125;
-    return vec2(sdPlaneXZ(p), 0.);
-}
-
-vec2 sdfUnion(vec2 a, vec2 b) {
-    if (a.x < b.x) {
-        return a;
-    }
-    return b;
-};
 
 vec2 sdf(vec3 p) {
-    return sdfUnion(sdMtn(p), sdSea(p));
+    return sdMtn(p);
 }
 
 #include "shaders/march.glsl"
+#include "shaders/sea.glsl"
 
 vec3 sky(vec3 v) {
     return mix(u_sky.color1 * u_sky.brightness.x, u_sky.color2 * u_sky.brightness.y, vec3(pow(clamp(v.y * 0.5 + 0.5, 0., 1.), 0.4)));
@@ -199,28 +178,10 @@ vec3 light(vec3 pos, vec3 lightDir, vec3 normal, vec3 viewDir, vec3 lightColor, 
     float reflectance = MTL_PARAMS[mtlID].z;
     float irradiance = max(dot(lightDir, normal), 0.); // Light received by the surface
     vec3 brd = brdf(lightDir, viewDir, normal, metallic, roughness, baseColor, reflectance);
-    radiance += irradiance * brd * lightColor;
+    // Trace shadow
+    float shadow = clamp(march(pos, lightDir, vec3(1., 1024., 30.)).z, 0., 1.);
+    radiance += irradiance * brd * lightColor * shadow;
     return radiance;
-}
-
-vec3 marchWater(vec3 pos, vec3 dir, vec3 lightDir, vec3 lightColor) {
-    vec3 scattering = vec3(0.);
-    float t = EPSILON;
-    vec2 dist = vec2(0.);
-    for (int i = 0; i < 1000; i++) {
-        vec3 samplePos = pos + dir * t;
-        dist = sdMtn(samplePos);
-        if (dist.x < EPSILON) {
-            vec3 normal = vec3(0., 1., 0.);
-            vec3 viewDir = normalize(pos - samplePos);
-            scattering += light(samplePos, lightDir, normal, viewDir, lightColor, int(dist.y));
-            break;
-        }
-        t += 0.1;
-    }
-
-    float depth = (1. - t / 100.);
-    return scattering * depth * mix(MTL_COLORS[0], vec3(1.), depth - 0.1);
 }
 
 void main() {
@@ -228,26 +189,33 @@ void main() {
     //vec3 l = vec3(sin(r_AnimationTime*0.1), -1., cos(r_AnimationTime*0.1)* 3.);
     vec3 l = vec3(sin(r_AnimationTime*0.1)*10., -4., cos(r_AnimationTime*0.1)*10.);
 
-    // Spheretrace surface in view
+    // Spheretrace non-water surfaces in view
     vec3 t = march(cam.pos, ray, vec3(EPSILON, 1024., 20.));
     vec3 pos = cam.pos + ray * t.x;
-    vec3 normal = normal(pos);    
+    vec3 norm = normal(pos);    
     vec3 lightDir = normalize(-l);
     vec3 viewDir = normalize(-ray);
     vec3 lightColor = vec3(6.);
     int mtlID = int(t.y);
 
+    // Trace sea surface separately
+    float st = marchSea(cam.pos, ray);
+
     vec3 radiance = vec3(0.);
-    if (mtlID == 0) { // if shading water
-        vec3 fresnel = fresnelSchlick(dot(normal, viewDir), vec3(0.02));
-        vec3 refractedDir = refract(ray, normal, 1. / 1.333);
-        vec3 subsurface = marchWater(pos, refractedDir, lightDir, lightColor) * (1. - fresnel);
+    if (st < t.x) { // if hit water
+        pos = cam.pos + ray * st;
+        norm = normalSea(pos);
+        vec3 fresnel = fresnelSchlick(dot(norm, viewDir), vec3(0.02));
+        vec3 refractedDir = refract(ray, norm, 1. / 1.333);
+        vec3 uwt = march(pos, refractedDir, vec3(EPSILON, 1024., 20.));
+        vec3 uwPos = pos + refractedDir * uwt.x;
+        vec3 uwNormal = normal(uwPos);
+        vec3 subsurface = light(uwPos, lightDir, uwNormal, -refractedDir, lightColor, int(uwt.y)) * (1. - fresnel);
         radiance = subsurface + fresnel;
     } else {
-        // Trace shadow
-        float shadow = clamp(march(pos, lightDir, vec3(1., 1024., 30.)).z, 0., 1.);
-        radiance = light(pos, lightDir, normal, viewDir, lightColor, mtlID) * shadow;
+        radiance = light(pos, lightDir, norm, viewDir, lightColor, mtlID);
     }
+    t.x = min(st, t.x);
 
     FragColor = vec4(mix(radiance, sky(ray), clamp(t.x / 200. - 1., 0., 1.)), 1.);
 }
