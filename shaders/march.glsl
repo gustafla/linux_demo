@@ -12,7 +12,7 @@ vec3 march(vec3 o, vec3 d, vec3 param) {
     float shadow = 1.;
     for (int i = 0; i < 256; i++) {
         dist = sdf(o + d * t);
-        t += dist.x * 0.5;
+        t += dist.x * 0.8;
         shadow = min(shadow, param.z * dist.x / t);
         if (dist.x < EPSILON) {
             shadow = 0.;

@@ -24,7 +24,7 @@ float marchSea(vec3 o, vec3 d) {
     float dist = 0.;
     for (int i = 0; i < 256; i++) {
         dist = sdSea(o + d * t);
-        t += dist * 0.5;
+        t += dist * 0.8;
         if (dist < EPSILON) {
             break;
         }

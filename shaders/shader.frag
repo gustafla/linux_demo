@@ -173,21 +173,19 @@ vec3 brdf(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 baseColo
 vec3 light(vec3 pos, vec3 dir, vec3 l, vec3 lc, int mtlID) {
     vec3 n = normal(pos);
     // No emissive surfaces
-    vec3 baseColor = MTL_COLORS[mtlID];
-    float roughness = MTL_PARAMS[mtlID].x;
-    float metallic = MTL_PARAMS[mtlID].y;
-    float reflectance = MTL_PARAMS[mtlID].z;
+    vec3 albedo = MTL_COLORS[mtlID];
+    vec3 params = MTL_PARAMS[mtlID];
     // Trace shadow
     float shadow = clamp(march(pos, l, vec3(1., 1024., 30.)).z, 0., 1.);
     // Light received by the surface
     vec3 irradiance = max(dot(l, n), 0.) * shadow + sky(n) * 0.2;
-    vec3 brd = brdf(l, -dir, n, metallic, roughness, baseColor, reflectance);
+    vec3 brd = brdf(l, -dir, n, params.y, params.x, albedo, params.z);
     return irradiance * brd * lc;
 }
 
 void main() {
     vec3 ray = viewMatrix() * cameraRay(); 
-    vec3 lightDir = -normalize(vec3(sin(r_AnimationTime*0.01)*10., -4., cos(r_AnimationTime*0.01)*10.));
+    vec3 lightDir = normalize(vec3(sin(r_AnimationTime*0.01)*10., -4., cos(r_AnimationTime*0.01)*10.));
     vec3 lightColor = vec3(6.);
 
     // Spheretrace non-water surfaces in view
@@ -195,24 +193,44 @@ void main() {
     vec3 pos = cam.pos + ray * hit.x;
 
     // Trace sea surface separately
-    float st = marchSea(cam.pos, ray);
+    float hitSea = marchSea(cam.pos, ray);
 
-    float fog = clamp(min(st, hit.x) / 200. - 1., 0., 1.);
+    // Compute a mask for parts of the image that should be sky (ray didn't hit)
+    // Ideally, this would be done with the shadow parameter (hit.z)
+    // but a fog works well in this case for now
+    float mask = clamp(min(hit.x, hitSea) / 350. - 1., 0.,  1.);
+
     vec3 radiance = vec3(0.);
-    if (st < hit.x) { // if hit water
-        pos = cam.pos + ray * st;
+
+    if (hitSea < hit.x) {
+        // Water shading
+        pos = cam.pos + ray * hitSea;
         vec3 n = normalSea(pos);
-        vec3 fresnel = fresnelSchlick(dot(n, -ray), vec3(0.02));
+
+        // Surface reflects some light, we sample this straight from the sky
+        vec3 reflected = sky(reflect(ray, n));
+
+        // Surface also transmits some light from below,
+        // this is modelled by tracing the "seafloor" under the water.
+        // First, the air-water -interface refracts the vector we need to look
         vec3 rd = refract(ray, n, 1. / 1.333);
-        //lightDir = refract(lightDir, vec3(0., 1., 0.), 1. / 1.333);
         hit = march(pos, rd, vec3(EPSILON, 1024., 20.));
-        vec3 rl = light(pos, rd, lightDir, lightColor, int(hit.y));
-        //rl *= pow(vec3(0.95, 0.979, 0.98), vec3(hit.x));
-        rl *= exp(-vec3(0.01, 0.009, 0.008) * hit.x);
-        radiance = mix(rl, sky(n), fresnel);
+        pos = pos + rd * hit.x;
+        // Second, also the light direction is refracted
+        lightDir = refract(lightDir, vec3(0., 1., 0), 1. / 1.333);
+        vec3 transmitted = light(pos, rd, -lightDir, lightColor, int(hit.y));
+        // Finally, the light transmitted by the water is attenuated exponentially
+        // (Beer-Lambert law)
+        transmitted *= exp(-vec3(0.04, 0.033, 0.03) * hit.x);
+
+        // The ratio between reflected and transmitted light is the
+        // Fresnel factor, computed by Schlick's approximation
+        vec3 fresnel = fresnelSchlick(dot(n, -ray), vec3(0.02));
+        radiance = mix(transmitted, reflected, fresnel);
     } else {
-        radiance = light(pos, ray, lightDir, lightColor, int(hit.y));
+        // Dry surface shading
+        radiance = light(pos, ray, -lightDir, lightColor, int(hit.y));
     }
 
-    FragColor = vec4(mix(radiance, sky(ray), fog), 1.);
+    FragColor = vec4(mix(radiance, sky(ray), mask), 1.);
 }
