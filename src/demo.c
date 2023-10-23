@@ -42,8 +42,6 @@ typedef struct {
     int y0;
     int x1;
     int y1;
-    // This integer is used for animating reloads
-    uint64_t reload_time;
     // OpenGL core requires that we use a VAO when issuing any drawcalls
     GLuint vao;
     // Shader programs for render passes. The stars of this show.
@@ -193,7 +191,6 @@ void demo_reload(demo_t *demo) {
     shader_deinit(bloom_pre_shader);
     shader_deinit(bloom_x_shader);
     shader_deinit(bloom_y_shader);
-    demo->reload_time = SDL_GetTicks64();
 }
 
 // This ugly function computes rectangle coordinates for scaling/letterboxing
@@ -503,16 +500,9 @@ void demo_render(demo_t *demo, struct sync_device *rocket, double rocket_row) {
     glBindFramebuffer(GL_READ_FRAMEBUFFER, demo->fbs[2].framebuffer);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT);
-#ifdef DEBUG
-    // Animate shader reload to show feedback in debug builds
-    float a = fmin((SDL_GetTicks64() - demo->reload_time) / 100.f, 1.);
-    const GLint x0 = demo->x0 * a, x1 = demo->x1 * a, y0 = demo->y0 * a,
-                y1 = demo->y1 * a;
-#else
-    const GLint x0 = demo->x0, x1 = demo->x1, y0 = demo->y0, y1 = demo->y1;
-#endif
-    glBlitFramebuffer(0, 0, demo->fbs[2].width, demo->fbs[2].height, x0, y0, x1,
-                      y1, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebuffer(0, 0, demo->fbs[2].width, demo->fbs[2].height, demo->x0,
+                      demo->y0, demo->x1, demo->y1, GL_COLOR_BUFFER_BIT,
+                      GL_LINEAR);
 
     // Switch fb to keep render results in memory for feedback effects
     demo->firstpass_fb_idx = alt_fb_idx;
