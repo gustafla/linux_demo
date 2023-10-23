@@ -180,6 +180,12 @@ int main(int argc, char *argv[]) {
     if (!connect_rocket(rocket, demo)) {
         return 0;
     }
+
+    // Set up framerate counting
+    uint64_t frames = 0;
+    uint64_t frame_check_time = SDL_GetTicks64();
+    uint64_t max_frame_time = 0;
+    uint64_t timestamp = 0;
 #else
     // Set rocket io callback
     sync_set_io_cb(rocket, &rocket_iocb);
@@ -215,6 +221,21 @@ int main(int argc, char *argv[]) {
             // Delay
             SDL_Delay(20);
         }
+
+        // Print FPS reading every so often
+        uint64_t ct = SDL_GetTicks64();
+        uint64_t ft = ct - timestamp;
+        max_frame_time = ft > max_frame_time ? ft : max_frame_time;
+        timestamp = ct;
+        if (frame_check_time + 5000 <= ct) {
+            SDL_Log("FPS: %.1f, max frametime: %lu ms\n",
+                    frames * 1000. / (double)(ct - frame_check_time),
+                    max_frame_time);
+            frames = 0;
+            max_frame_time = 0;
+            frame_check_time = ct;
+        }
+        frames++;
 #else
         // Quit the demo when music ends
         if (player_at_end(player)) {
