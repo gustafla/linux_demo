@@ -11,8 +11,8 @@ float sdTorus(vec3 p, vec2 t) {
     return length(q) - t.y;
 }
 
-vec2 sdfUnion(vec2 a, vec2 b) {
-    if (a.x < b.x) {
+vec2 sdfUnion(vec2 a, vec2 b, float f) {
+    if (a.x < b.x && a.y + EPSILON >= f) {
         return a;
     }
     return b;
