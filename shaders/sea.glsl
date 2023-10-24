@@ -1,11 +1,11 @@
 float sdSea(vec3 p) {
-    p.y += sin(p.z * 0.225 + r_AnimationTime) * 1.;
-    p.y += sin(p.z * 0.15 + r_AnimationTime) * 0.6;
-    p.y += sin(p.x * 0.125 + r_AnimationTime) * 1.;
+    p.y += sin(p.z * 0.225 + r_AnimationTime * 0.3) * 1.;
+    p.y += sin(p.z * 0.15 + r_AnimationTime * 0.4) * 0.6;
+    p.y += sin(p.x * 0.125 + r_AnimationTime * 0.3) * 1.;
     p.xz = rotation(.1) * p.xz;
-    p.y += abs(sin(p.x * 0.25 + r_AnimationTime)) * 0.5;
+    p.y += abs(sin(p.x * 0.25 + r_AnimationTime * 0.8)) * 0.5;
     p.xz = rotation(.6) * p.xz;
-    p.y += abs(sin(p.x * 0.5 + r_AnimationTime)) * 0.25;
+    p.y += abs(sin(p.x * 0.5 + r_AnimationTime * 0.7)) * 0.25;
     p.xz = rotation(.9) * p.xz;
     p.y += abs(sin(p.x + r_AnimationTime)) * 0.125;
     return p.y;
