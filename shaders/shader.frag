@@ -170,7 +170,7 @@ vec3 brdf(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 baseColo
 // Radiance out to view = Emitted radiance to view
 // + integral (sort of like sum) over the whole hemisphere:
 // brdf(v, l) * incoming irradiance (radiance per area)
-vec3 light(vec3 pos, vec3 dir, vec3 l, vec3 lc, int mtlID) {
+vec3 light(vec3 pos, vec3 dir, vec3 l, vec3 lc, vec3 ga, int mtlID) {
     vec3 n = normal(pos);
     // No emissive surfaces
     vec3 albedo = MTL_COLORS[mtlID];
@@ -180,8 +180,10 @@ vec3 light(vec3 pos, vec3 dir, vec3 l, vec3 lc, int mtlID) {
     // Light received by the surface
     vec3 irradiance = max(dot(l, n), 0.) * shadow * lc;
     // Add a bit of fake ambient light from the sky
-    // (should be an integral of the sky over fragment's hemisphere but isn't)
+    // (should be an integral of all light over fragment's hemisphere but isn't)
     irradiance += sky(n);
+    // Attenuate irradiance (in this case, when water blocks light)
+    irradiance *= ga;
     // Compute BRDF
     vec3 brd = brdf(l, -dir, n, params.y, params.x, albedo, params.z);
     return irradiance * brd;
@@ -211,8 +213,8 @@ void main() {
         pos = cam.pos + ray * hitSea;
         vec3 n = normalSea(pos);
 
-        // This is how much the water medium attenuates light (RGB)
-        vec3 absorptivity = vec3(0.04, 0.033, 0.03);
+        // This is how much the water medium absorbs light (RGB)
+        vec3 absorptivity = vec3(0.04, 0.033, 0.03) * 0.5;
 
         // First, the air-water -interface refracts what is seen through
         vec3 rd = refract(ray, n, 1. / 1.333);
@@ -230,7 +232,10 @@ void main() {
         pos = pos + rd * hit.x;
         // Also the light direction is refracted
         lightDir = refract(lightDir, vec3(0., 1., 0), 1. / 1.333);
-        vec3 transmitted = light(pos, rd, -lightDir, lightColor, int(hit.y));
+        // Deeper parts of the underwater surface receive less light
+        // (Beer-Lambert law)
+        vec3 attenuation = max(exp(-absorptivity * -pos.y) - 0.2, 0.);
+        vec3 transmitted = light(pos, rd, -lightDir, lightColor, attenuation, int(hit.y));
         // The light transmitted by the water is attenuated exponentially
         // (Beer-Lambert law)
         transmitted *= exp(-absorptivity * hit.x);
@@ -247,7 +252,7 @@ void main() {
         radiance = mix(transmitted + scattered, reflected, fresnel);
     } else {
         // Dry surface shading
-        radiance = light(pos, ray, -lightDir, lightColor, int(hit.y));
+        radiance = light(pos, ray, -lightDir, lightColor, vec3(1.), int(hit.y));
     }
 
     FragColor = vec4(mix(radiance, sky(ray), mask), 1.);
