@@ -184,10 +184,10 @@ vec3 brdf(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 baseColo
 // Radiance out to view = Emitted radiance to view
 // + integral (sort of like sum) over the whole hemisphere:
 // brdf(v, l) * incoming irradiance (radiance per area)
-vec3 light(vec3 pos, vec3 dir, vec3 n, vec3 l, vec3 lc, vec3 ga, int mtlID) {
+vec3 light(vec3 pos, vec3 dir, vec3 n, vec3 l, vec3 lc, vec3 ga, int mtlID, vec3 paramOffset) {
     // No emissive surfaces
     vec3 albedo = MTL_COLORS[mtlID];
-    vec3 params = MTL_PARAMS[mtlID];
+    vec3 params = clamp(MTL_PARAMS[mtlID] + paramOffset, 0., 1.);
     // Trace shadow
     float shadow = clamp(march(pos, l, vec3(1., 1024., 30.), 1.).z, 0., 1.);
     // Light received by the surface
@@ -200,6 +200,55 @@ vec3 light(vec3 pos, vec3 dir, vec3 n, vec3 l, vec3 lc, vec3 ga, int mtlID) {
     // Compute BRDF
     vec3 brd = brdf(l, -dir, n, params.y, params.x, albedo, params.z);
     return irradiance * brd;
+}
+
+vec3 water(vec3 pos, vec3 dir, vec3 n, vec3 l, vec3 lc) {
+    // This is how much the water medium absorbs light (RGB)
+    vec3 absorptivity = MTL_COLORS[0];
+
+    // The water surface reflects some light,
+    // we sample the reflection straight from the sky.
+    // For realistic reflections, we would need to spheretrace in the
+    // reflected direction.
+    vec3 reflected = sky(reflect(dir, n));
+
+    // The ratio between reflected and transmitted light is the
+    // Fresnel factor, computed by Schlick's approximation
+    vec3 fresnel = fresnelSchlick(dot(n, -dir), vec3(0.02));
+
+    // The air-water -interface also refracts what is seen through
+    vec3 rd = refract(dir, n, 1. / 1.333);
+
+    // Some light is scattered in the medium. To model this correctly,
+    // we would need a volumetric raymarching algorithm, but here
+    // we are just doing a cheaper trick to add some color to the
+    // crests of the waves
+    vec3 scattered = vec3(0.);
+    vec3 scatterAlbedo = vec3(0.1, 0.2, 0.1) * 0.005;
+    for (int i = 0; i < 4; i++) {
+        vec3 samplePos = pos - vec3(0., float(i) * 0.5, 0.);
+        float shadow = clamp(march(samplePos, l, vec3(1., 256., 10.), 1.).z, 0., 1.);
+        vec3 irradiance = max(dot(l, n), 0.) * lc * shadow;
+        float t = max(-rd.y-samplePos.y, 0.) * 2.;
+        scattered += exp(-absorptivity * t) * lc * scatterAlbedo * irradiance;
+    }
+
+    // Surface also transmits some light from below,
+    // account for the surfaces underwater by marching into the water
+    vec3 hit = march(pos, rd, vec3(EPSILON, 1024., 20.), 1.);
+    pos = pos + rd * hit.x;
+    n = normal(pos, 1.);
+    // Deeper parts of the underwater surface receive less light
+    // (Beer-Lambert law), also the surface reflection blocks some light
+    vec3 fl = fresnelSchlick(dot(vec3(0., 1., 0), l), vec3(0.02));
+    vec3 attenuation = max(exp(-absorptivity * -pos.y) - fl, 0.);
+    vec3 transmitted = light(pos, rd, n, l, lc, attenuation, int(hit.y), vec3(1., 0., 0.));
+    // The light transmitted by the water is attenuated exponentially
+    // (Beer-Lambert law)
+    transmitted *= exp(-absorptivity * hit.x);
+
+    // Final radiance is a mix of reflected and transmitted light
+    return mix(transmitted + scattered, reflected, fresnel);
 }
 
 void main() {
@@ -222,49 +271,9 @@ void main() {
 
     // Material 0 is water, special case
     if (mtlID == 0) {
-        // This is how much the water medium absorbs light (RGB)
-        vec3 absorptivity = MTL_COLORS[mtlID];
-
-        // The water surface reflects some light,
-        // we sample the reflection straight from the sky.
-        // For realistic reflections, we would need to spheretrace in the
-        // reflected direction.
-        vec3 reflected = sky(reflect(ray, n));
-
-        // The ratio between reflected and transmitted light is the
-        // Fresnel factor, computed by Schlick's approximation
-        vec3 fresnel = fresnelSchlick(dot(n, -ray), vec3(0.02));
-
-        // The air-water -interface also refracts what is seen through
-        vec3 rd = refract(ray, n, 1. / 1.333);
-
-        // Some light is scattered in the medium. To model this correctly,
-        // we would need a volumetric raymarching algorithm, but here
-        // we are just doing a cheap trick to add some color to the
-        // crests of the waves
-        float t = max(-rd.y-pos.y, 0.) * 2.;
-        vec3 scattered = exp(-absorptivity * t) * lightColor * vec3(0.1, 0.2, 0.1) * 0.07;
-
-        // Surface also transmits some light from below,
-        // account for the surfaces underwater by marching into the water
-        hit = march(pos, rd, vec3(EPSILON, 1024., 20.), 1.);
-        pos = pos + rd * hit.x;
-        n = normal(pos, 1.);
-        // Also the light direction is refracted
-        lightDir = refract(lightDir, vec3(0., 1., 0), 1. / 1.333);
-        // Deeper parts of the underwater surface receive less light
-        // (Beer-Lambert law)
-        vec3 attenuation = max(exp(-absorptivity * -pos.y) - 0.2, 0.);
-        vec3 transmitted = light(pos, rd, n, -lightDir, lightColor, attenuation, int(hit.y));
-        // The light transmitted by the water is attenuated exponentially
-        // (Beer-Lambert law)
-        transmitted *= exp(-absorptivity * hit.x);
-
-        // Final radiance is a mix of reflected and transmitted light
-        radiance = mix(transmitted + scattered, reflected, fresnel);
+        radiance = water(pos, ray, n, -lightDir, lightColor);
     } else {
-        // Dry surface shading
-        radiance = light(pos, ray, n, -lightDir, lightColor, vec3(1.), int(hit.y));
+        radiance = light(pos, ray, n, -lightDir, lightColor, vec3(1.), int(hit.y), vec3(0.));
     }
 
     FragColor = vec4(mix(radiance, sky(ray), mask), 1.);
