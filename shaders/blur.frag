@@ -9,17 +9,17 @@ out vec4 FragColor;
 
 uniform sampler2D u_InputSampler;
 
-#include "shaders/blur_kernel.glsl"
+#include "blur_kernel.glsl"
 
 void main() {
     vec3 color = texelFetch(u_InputSampler, ivec2(gl_FragCoord.xy), 0).rgb * kernel[0];
     for (int i = 1; i < KERNEL_SIZE; i++) {
         ivec2 offset = ivec2(0);
-#ifdef HORIZONTAL
+        #ifdef HORIZONTAL
         offset.x = i;
-#else
+        #else
         offset.y = i;
-#endif
+        #endif
         color += texelFetch(u_InputSampler, ivec2(gl_FragCoord.xy) + offset, 0).rgb * kernel[i];
         color += texelFetch(u_InputSampler, ivec2(gl_FragCoord.xy) - offset, 0).rgb * kernel[i];
     }

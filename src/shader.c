@@ -212,7 +212,12 @@ GLuint compile_shader(const char *shader_src, size_t shader_src_len,
 
         // Read the file that was requested and "paste" it here
         char *include_src = NULL;
-        size_t include_src_len = read_file(include_name, &include_src);
+        // This hack hardcodes a shaders/ -directory prefix to all #includes
+        static char fullpath[MAX_INCLUDE_NAME_LEN + 8];
+        memcpy(fullpath, "shaders/", 8);
+        // TODO improve this code by adding robust include path handling
+        strncpy(fullpath + 8, include_name, MAX_INCLUDE_NAME_LEN);
+        size_t include_src_len = read_file(fullpath, &include_src);
         if (include_src_len) {
             assert(frag_idx < MAX_SHADER_FRAGMENTS);
             src_len[frag_idx] = include_src_len;

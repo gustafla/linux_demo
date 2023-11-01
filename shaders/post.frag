@@ -28,7 +28,7 @@ vec3 acesApprox(vec3 v) {
     float c = 2.43;
     float d = 0.59;
     float e = 0.14;
-    return clamp((v*(a*v+b))/(v*(c*v+d)+e), 0., 1.);
+    return clamp((v * (a * v + b)) / (v * (c * v + d) + e), 0., 1.);
 }
 
 // This is used to achieve chromatic aberration
@@ -46,10 +46,10 @@ void main() {
     // Input color with RGB aberration
     vec2 pixel = 1. / u_Resolution;
     vec3 color = vec3(
-        radialSum(pixel * 3.).r,
-        radialSum(pixel * 2.).g,
-        radialSum(pixel * 1.).b
-    ) / float(BLUR_SAMPLES);
+            radialSum(pixel * 3.).r,
+            radialSum(pixel * 2.).g,
+            radialSum(pixel * 1.).b
+        ) / float(BLUR_SAMPLES);
 
     // Add bloom
     color += texture2D(u_BloomSampler, FragCoord * 0.5 + 0.5).rgb;

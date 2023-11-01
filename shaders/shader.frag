@@ -38,16 +38,16 @@ mat2 rotation(float a) {
     );
 }
 
-#include "shaders/sdf.glsl"
+#include "sdf.glsl"
 
 float aspectRatio() {
     return u_Resolution.x / u_Resolution.y;
 }
 
 mat3 viewMatrix() {
-	vec3 f = normalize(cam.target - cam.pos);
-	vec3 s = normalize(cross(f, vec3(0., 1., 0.)));
-	vec3 u = cross(s, f);
+    vec3 f = normalize(cam.target - cam.pos);
+    vec3 s = normalize(cross(f, vec3(0., 1., 0.)));
+    vec3 u = cross(s, f);
     return mat3(s, u, f);
 }
 
@@ -62,7 +62,7 @@ float motion(vec2 st, float phase) {
 }
 
 #define OCTAVES 4
-float fbm (vec2 st) {
+float fbm(vec2 st) {
     // Initial values
     float value = 0.0;
     float amplitude = .5;
@@ -77,17 +77,17 @@ float fbm (vec2 st) {
 }
 
 const vec3 MTL_COLORS[] = vec3[](
-    vec3(0.04, 0.033, 0.03), // Water absorptivity
-    vec3(0.9),
-    vec3(0.56, 0.57, 0.58)
-);
+        vec3(0.04, 0.033, 0.03), // Water absorptivity
+        vec3(0.9),
+        vec3(0.56, 0.57, 0.58)
+    );
 
 // x = roughness, y = metalness, z = reflectance
 const vec3 MTL_PARAMS[] = vec3[](
-    vec3(0.), // Unused
-    vec3(0.1, 0., 0.9),
-    vec3(0.9, 0., 0.1)
-);
+        vec3(0.), // Unused
+        vec3(0.1, 0., 0.9),
+        vec3(0.9, 0., 0.1)
+    );
 
 vec2 sdSea(vec3 p) {
     p.y += sin(p.z * 0.225 + r_AnimationTime * 0.3) * 1.;
@@ -113,7 +113,7 @@ vec2 sdf(vec3 p, float f) {
     return sdfUnion(sdSea(p), sdMtn(p), f);
 }
 
-#include "shaders/march.glsl"
+#include "march.glsl"
 
 vec3 sky(vec3 v) {
     return mix(u_sky.color1 * u_sky.brightness.x, u_sky.color2 * u_sky.brightness.y, vec3(pow(clamp(v.y * 0.5 + 0.5, 0., 1.), 0.4)));
@@ -147,7 +147,7 @@ vec3 brdf(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 baseColo
     // Specular is a product of Fresnel reflectance,
     // normal distribution function and a geomertry term (microfacet shadowing)
     // divided by the product of n dot l and n dot v.
-    
+
     vec3 H = normalize(V + L);
     float NdotV = clamp(dot(N, V), EPSILON, 1.0);
     float NdotL = clamp(dot(N, L), EPSILON, 1.0);
@@ -169,7 +169,7 @@ vec3 brdf(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 baseColo
     rhoD *= (1. - metallic);
     //https://github.com/ranjak/opengl-tutorial/blob/master/shaders/illumination/diramb_orennayar_pcn.vert
     float sigma = roughness;
-    float sigma2 = sigma*sigma;
+    float sigma2 = sigma * sigma;
     float termA = 1.0 - 0.5 * sigma2 / (sigma2 + 0.57);
     float termB = 0.45 * sigma2 / (sigma2 + 0.09);
     float cosAzimuthSinaTanb = (LdotV - NdotV * NdotL) / max(NdotV, NdotL);
@@ -229,7 +229,7 @@ vec3 water(vec3 pos, vec3 dir, vec3 n, vec3 l, vec3 lc) {
         vec3 samplePos = pos - vec3(0., float(i) * 0.5, 0.);
         float shadow = clamp(march(samplePos, l, vec3(1., 256., 10.), 1.).z, 0., 1.);
         vec3 irradiance = max(dot(l, n), 0.) * lc * shadow;
-        float t = max(-rd.y-samplePos.y, 0.) * 2.;
+        float t = max(-rd.y - samplePos.y, 0.) * 2.;
         scattered += exp(-absorptivity * t) * lc * scatterAlbedo * irradiance;
     }
 
@@ -252,8 +252,8 @@ vec3 water(vec3 pos, vec3 dir, vec3 n, vec3 l, vec3 lc) {
 }
 
 void main() {
-    vec3 ray = viewMatrix() * cameraRay(); 
-    vec3 lightDir = normalize(vec3(sin(r_AnimationTime*0.01)*10., -4., cos(r_AnimationTime*0.01)*10.));
+    vec3 ray = viewMatrix() * cameraRay();
+    vec3 lightDir = normalize(vec3(sin(r_AnimationTime * 0.01) * 10., -4., cos(r_AnimationTime * 0.01) * 10.));
     vec3 lightColor = vec3(6.);
 
     // Spheretrace all surfaces in view
@@ -265,7 +265,7 @@ void main() {
     // Compute a mask for parts of the image that should be sky (ray didn't hit)
     // Ideally, this would be done with the shadow parameter (hit.z)
     // but a fog works well in this case for now
-    float mask = clamp(hit.x / 350. - 1., 0.,  1.);
+    float mask = clamp(hit.x / 350. - 1., 0., 1.);
 
     vec3 radiance = vec3(0.);
 

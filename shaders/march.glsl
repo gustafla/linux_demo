@@ -1,9 +1,9 @@
 vec3 normal(vec3 p, float f) {
     return normalize(vec3(
-        sdf(vec3(p.x + EPSILON, p.y, p.z), f).x - sdf(vec3(p.x - EPSILON, p.y, p.z), f).x,
-        sdf(vec3(p.x, p.y + EPSILON, p.z), f).x - sdf(vec3(p.x, p.y - EPSILON, p.z), f).x,
-        sdf(vec3(p.x, p.y, p.z  + EPSILON), f).x - sdf(vec3(p.x, p.y, p.z - EPSILON), f).x
-    ));
+            sdf(vec3(p.x + EPSILON, p.y, p.z), f).x - sdf(vec3(p.x - EPSILON, p.y, p.z), f).x,
+            sdf(vec3(p.x, p.y + EPSILON, p.z), f).x - sdf(vec3(p.x, p.y - EPSILON, p.z), f).x,
+            sdf(vec3(p.x, p.y, p.z + EPSILON), f).x - sdf(vec3(p.x, p.y, p.z - EPSILON), f).x
+        ));
 }
 
 vec3 march(vec3 o, vec3 d, vec3 param, float f) {
