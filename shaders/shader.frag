@@ -79,14 +79,16 @@ float fbm(vec2 st) {
 const vec3 MTL_COLORS[] = vec3[](
         vec3(0.04, 0.033, 0.03), // Water absorptivity
         vec3(0.9),
-        vec3(0.56, 0.57, 0.58)
+        vec3(0.56, 0.57, 0.58),
+        vec3(0.8, 0.14, 0.12)
     );
 
 // x = roughness, y = metalness, z = reflectance
 const vec3 MTL_PARAMS[] = vec3[](
         vec3(0.), // Unused
         vec3(0.1, 0., 0.9),
-        vec3(0.9, 0., 0.1)
+        vec3(0.9, 0., 0.1),
+        vec3(0.4, 0.3, 0.2)
     );
 
 vec2 sdSea(vec3 p) {
@@ -109,8 +111,24 @@ vec2 sdMtn(vec3 p) {
     return vec2(sdPlaneXZ(p), stripes + 1.);
 }
 
+vec2 sdFarjan(vec3 p) {
+    p -= vec3(40., 0., 0.);
+    return vec2(
+        max(
+            max(
+                sdSphere(p - vec3(70, 0, 0), 60.),
+                sdSphere(p, 60.)
+            ),
+            sdPlaneXZ(p - vec3(0., 10., 0.))
+        ), 3.);
+}
+
 vec2 sdf(vec3 p, float f) {
-    return sdfUnion(sdSea(p), sdMtn(p), f);
+    return opUnion(
+        opUnion(sdSea(p), sdMtn(p), f),
+        sdFarjan(p),
+        f
+    );
 }
 
 #include "march.glsl"
