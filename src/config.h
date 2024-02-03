@@ -4,10 +4,10 @@
 // This header file is mostly referenced by main.c, demo.c and shader.c.
 // Contains demo's configuration values such as resolution and music BPM.
 
-#define WIDTH (1920 / 2)
-#define HEIGHT (720 / 2)
-#define BEATS_PER_MINUTE 120.0
-#define ROWS_PER_BEAT 8.
+#define WIDTH 1920
+#define HEIGHT 720
+#define BEATS_PER_MINUTE 16
+#define ROWS_PER_BEAT 32.
 
 // A RGBA noise texture is generated for every frame. It's pixel count is this
 // value squared. This value affects required CPU->GPU bandwidth per frame.

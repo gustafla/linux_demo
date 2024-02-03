@@ -234,7 +234,7 @@ demo_t *demo_init(int width, int height) {
 
     // Create FBs
     for (size_t i = 0; i < FBS; i++) {
-        demo->fbs[i] = create_framebuffer(width, height, GL_NEAREST);
+        demo->fbs[i] = create_framebuffer(width, height, GL_LINEAR);
         if (demo->fbs[i].framebuffer == 0) {
             return NULL;
         }

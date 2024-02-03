@@ -26,18 +26,17 @@ uniform r_Sky {
     vec2 brightness;
 } u_sky;
 
+uniform r_Light {
+    vec3 color;
+    vec3 direction;
+} dlight;
+
 uniform sampler2D u_FeedbackSampler;
 
 #define PI 3.14159265
 #define EPSILON 0.001
 
-mat2 rotation(float a) {
-    return mat2(
-        cos(a), -sin(a),
-        sin(a), cos(a)
-    );
-}
-
+#include "rotation.glsl"
 #include "sdf.glsl"
 
 float aspectRatio() {
@@ -77,7 +76,7 @@ float fbm(vec2 st) {
 }
 
 const vec3 MTL_COLORS[] = vec3[](
-        vec3(0.04, 0.033, 0.03), // Water absorptivity
+        vec3(0.04, 0.033, 0.03) * 0.7, // Water absorptivity
         vec3(0.9),
         vec3(0.56, 0.57, 0.58),
         vec3(0.8, 0.14, 0.12)
@@ -94,12 +93,15 @@ const vec3 MTL_PARAMS[] = vec3[](
 vec2 sdSea(vec3 p) {
     p.y += sin(p.z * 0.225 + r_AnimationTime * 0.3) * 1.;
     p.y += sin(p.z * 0.15 + r_AnimationTime * 0.4) * 0.6;
+    p.y += sin(p.z * 0.15 - r_AnimationTime * 0.6) * 0.6;
     p.y += sin(p.x * 0.125 + r_AnimationTime * 0.3) * 1.;
-    p.xz = rotation(.1) * p.xz;
+    p.xz = rotation2D(.1) * p.xz;
     p.y += abs(sin(p.x * 0.25 + r_AnimationTime * 0.8)) * 0.5;
-    p.xz = rotation(.6) * p.xz;
+    p.y += abs(sin(p.x * 0.22 - r_AnimationTime * 0.2)) * 0.5;
+    p.xz = rotation2D(.6) * p.xz;
     p.y += abs(sin(p.x * 0.5 + r_AnimationTime * 0.7)) * 0.25;
-    p.xz = rotation(.9) * p.xz;
+    p.y += abs(sin(p.x * 0.22 - r_AnimationTime * 0.2)) * 0.5;
+    p.xz = rotation2D(1.9) * p.xz;
     p.y += abs(sin(p.x + r_AnimationTime)) * 0.125;
     return vec2(p.y, 0.);
 }
@@ -123,10 +125,22 @@ vec2 sdFarjan(vec3 p) {
         ), 3.);
 }
 
+vec2 sdBuoy(vec3 p, float f) {
+    return opUnion(
+        vec2(sdSphere(p, 5.), 3.),
+        opUnion(
+            vec2(sdSphere(p * 0.99 - vec3(0., 1.2, 0.), 5.), 1.),
+            vec2(sdSphere(p * 0.99 - vec3(0., -1.2, 0.), 5.), 1.),
+            f
+        ),
+        f
+    );
+}
+
 vec2 sdf(vec3 p, float f) {
     return opUnion(
         opUnion(sdSea(p), sdMtn(p), f),
-        sdFarjan(p),
+        sdBuoy(rotation3D(vec3(0.1, 1., 0.5), r_AnimationTime * 0.16) * (p - vec3(200, sin(r_AnimationTime) * 0.7 + sin(r_AnimationTime * 0.4), 0.)), f),
         f
     );
 }
@@ -271,8 +285,7 @@ vec3 water(vec3 pos, vec3 dir, vec3 n, vec3 l, vec3 lc) {
 
 void main() {
     vec3 ray = viewMatrix() * cameraRay();
-    vec3 lightDir = normalize(vec3(sin(r_AnimationTime * 0.01) * 10., -4., cos(r_AnimationTime * 0.01) * 10.));
-    vec3 lightColor = vec3(6.);
+    vec3 lightDir = normalize(dlight.direction);
 
     // Spheretrace all surfaces in view
     vec3 hit = march(cam.pos, ray, vec3(EPSILON, 1024., 20.), 0.);
@@ -289,9 +302,9 @@ void main() {
 
     // Material 0 is water, special case
     if (mtlID == 0) {
-        radiance = water(pos, ray, n, -lightDir, lightColor);
+        radiance = water(pos, ray, n, -lightDir, dlight.color);
     } else {
-        radiance = light(pos, ray, n, -lightDir, lightColor, vec3(1.), int(hit.y), vec3(0.));
+        radiance = light(pos, ray, n, -lightDir, dlight.color, vec3(1.), int(hit.y), vec3(0.));
     }
 
     FragColor = vec4(mix(radiance, sky(ray), mask), 1.);

@@ -1,0 +1,158 @@
+<sync rows="1440">
+	<tracks>
+		<track name="AnimationTime">
+			<key interpolation="1" value="0" row="0"/>
+			<key interpolation="0" value="1024" row="1439"/>
+		</track>
+		<track name="Sky:color1.z">
+			<key interpolation="1" value="0.89999998" row="0"/>
+			<key interpolation="1" value="1" row="288"/>
+			<key interpolation="0" value="0" row="848"/>
+		</track>
+		<track name="Sky:color1.y">
+			<key interpolation="1" value="1" row="0"/>
+			<key interpolation="1" value="1" row="288"/>
+			<key interpolation="1" value="0.69999999" row="848"/>
+			<key interpolation="0" value="0.19999999" row="1439"/>
+		</track>
+		<track name="Sky:color1.x">
+			<key interpolation="1" value="1.2" row="0"/>
+			<key interpolation="1" value="1" row="288"/>
+			<key interpolation="1" value="1" row="848"/>
+			<key interpolation="0" value="0.30000001" row="1439"/>
+		</track>
+		<track name="Sky:color2.z">
+			<key interpolation="1" value="0.29999992" row="0"/>
+			<key interpolation="1" value="1" row="288"/>
+			<key interpolation="0" value="1.5" row="848"/>
+		</track>
+		<track name="Sky:color2.y">
+			<key interpolation="1" value="0.39999992" row="0"/>
+			<key interpolation="1" value="1" row="288"/>
+			<key interpolation="0" value="1.1" row="848"/>
+		</track>
+		<track name="Sky:color2.x">
+			<key interpolation="1" value="0.5999999" row="0"/>
+			<key interpolation="1" value="1" row="288"/>
+			<key interpolation="0" value="0.69999999" row="848"/>
+		</track>
+		<track name="Sky:brightness.y">
+			<key interpolation="1" value="0" row="0"/>
+			<key interpolation="1" value="4" row="288"/>
+			<key interpolation="1" value="3" row="848"/>
+			<key interpolation="0" value="0" row="1439"/>
+		</track>
+		<track name="Sky:brightness.x">
+			<key interpolation="1" value="1" row="0"/>
+			<key interpolation="1" value="0" row="288"/>
+			<key interpolation="0" value="10" row="848"/>
+		</track>
+		<track name="Cam:fov">
+			<key interpolation="0" value="90" row="0"/>
+			<key interpolation="0" value="60" row="312"/>
+			<key interpolation="0" value="90" row="505"/>
+			<key interpolation="0" value="90" row="816"/>
+		</track>
+		<track name="Cam:pos.z">
+			<key interpolation="0" value="159.99982" row="0"/>
+			<key interpolation="0" value="30" row="312"/>
+			<key interpolation="2" value="10" row="505"/>
+			<key interpolation="0" value="7" row="815"/>
+			<key interpolation="1" value="-10" row="816"/>
+			<key interpolation="0" value="14" row="1103"/>
+			<key interpolation="1" value="-50" row="1104"/>
+			<key interpolation="0" value="20" row="1439"/>
+		</track>
+		<track name="Cam:pos.y">
+			<key interpolation="0" value="40" row="0"/>
+			<key interpolation="1" value="5" row="312"/>
+			<key interpolation="2" value="40" row="504"/>
+			<key interpolation="0" value="100" row="815"/>
+			<key interpolation="1" value="10" row="816"/>
+			<key interpolation="0" value="50" row="1103"/>
+			<key interpolation="1" value="10" row="1104"/>
+			<key interpolation="0" value="3" row="1439"/>
+		</track>
+		<track name="Cam:pos.x">
+			<key interpolation="1" value="100" row="0"/>
+			<key interpolation="0" value="-40" row="288"/>
+			<key interpolation="0" value="30" row="312"/>
+			<key interpolation="1" value="-4" row="505"/>
+			<key interpolation="0" value="20" row="815"/>
+			<key interpolation="1" value="120" row="816"/>
+			<key interpolation="0" value="41" row="1103"/>
+			<key interpolation="1" value="-46" row="1104"/>
+			<key interpolation="0" value="199" row="1439"/>
+		</track>
+		<track name="Cam:target.z">
+			<key interpolation="0" value="100" row="312"/>
+			<key interpolation="0" value="0" row="505"/>
+			<key interpolation="0" value="0" row="816"/>
+			<key interpolation="1" value="-120" row="1104"/>
+			<key interpolation="0" value="0" row="1439"/>
+		</track>
+		<track name="Cam:target.y">
+			<key interpolation="1" value="-50" row="0"/>
+			<key interpolation="0" value="40" row="288"/>
+			<key interpolation="0" value="0" row="312"/>
+			<key interpolation="0" value="0" row="505"/>
+			<key interpolation="0" value="0" row="816"/>
+			<key interpolation="1" value="10" row="1104"/>
+			<key interpolation="0" value="0" row="1439"/>
+		</track>
+		<track name="Cam:target.x">
+			<key interpolation="1" value="100" row="0"/>
+			<key interpolation="0" value="40" row="288"/>
+			<key interpolation="0" value="-32" row="312"/>
+			<key interpolation="1" value="1" row="505"/>
+			<key interpolation="0" value="-10" row="815"/>
+			<key interpolation="0" value="0" row="816"/>
+			<key interpolation="1" value="120" row="1104"/>
+			<key interpolation="0" value="200" row="1439"/>
+		</track>
+		<track name="Post:bloomTreshold">
+			<key interpolation="0" value="3" row="0"/>
+		</track>
+		<track name="Post:aberration">
+			<key interpolation="0" value="2" row="0"/>
+		</track>
+		<track name="Light:color.z">
+			<key interpolation="0" value="6" row="0"/>
+			<key interpolation="1" value="6" row="1104"/>
+			<key interpolation="0" value="1" row="1439"/>
+		</track>
+		<track name="Light:color.y">
+			<key interpolation="0" value="6" row="0"/>
+			<key interpolation="1" value="6" row="1104"/>
+			<key interpolation="0" value="2" row="1439"/>
+		</track>
+		<track name="Light:color.x">
+			<key interpolation="0" value="6" row="0"/>
+			<key interpolation="1" value="6" row="1104"/>
+			<key interpolation="0" value="3" row="1439"/>
+		</track>
+		<track name="Light:direction.z">
+			<key interpolation="0" value="1" row="0"/>
+			<key interpolation="1" value="1" row="600"/>
+			<key interpolation="0" value="0" row="816"/>
+			<key interpolation="1" value="0" row="1104"/>
+			<key interpolation="0" value="3" row="1439"/>
+		</track>
+		<track name="Light:direction.y">
+			<key interpolation="1" value="1" row="0"/>
+			<key interpolation="0" value="-1" row="288"/>
+			<key interpolation="1" value="-1" row="600"/>
+			<key interpolation="0" value="-1" row="816"/>
+			<key interpolation="1" value="-1" row="1104"/>
+			<key interpolation="0" value="0.1" row="1439"/>
+		</track>
+		<track name="Light:direction.x">
+			<key interpolation="0" value="0" row="0"/>
+			<key interpolation="1" value="0" row="600"/>
+			<key interpolation="0" value="0" row="816"/>
+			<key interpolation="1" value="0" row="1104"/>
+			<key interpolation="0" value="10" row="1439"/>
+		</track>
+	</tracks>
+	<bookmarks/>
+</sync>
