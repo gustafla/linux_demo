@@ -113,18 +113,6 @@ vec2 sdMtn(vec3 p) {
     return vec2(sdPlaneXZ(p), stripes + 1.);
 }
 
-vec2 sdFarjan(vec3 p) {
-    p -= vec3(40., 0., 0.);
-    return vec2(
-        max(
-            max(
-                sdSphere(p - vec3(70, 0, 0), 60.),
-                sdSphere(p, 60.)
-            ),
-            sdPlaneXZ(p - vec3(0., 10., 0.))
-        ), 3.);
-}
-
 vec2 sdBuoy(vec3 p, float f) {
     return opUnion(
         vec2(sdSphere(p, 5.), 3.),
