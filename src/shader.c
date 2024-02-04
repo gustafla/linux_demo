@@ -70,8 +70,6 @@ static size_t read_file(const char *filename, char **dst) {
 static GLenum type_from_str(const char *shader_type) {
     if (strcmp("vert", shader_type) == 0) {
         return GL_VERTEX_SHADER;
-    } else if (strcmp("geom", shader_type) == 0) {
-        return GL_GEOMETRY_SHADER;
     } else if (strcmp("frag", shader_type) == 0) {
         return GL_FRAGMENT_SHADER;
     }

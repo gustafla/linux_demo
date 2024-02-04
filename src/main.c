@@ -96,10 +96,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Set OpenGL version (ES 3.2 when GLES configured in make)
+    // Set OpenGL version (ES 3.1 when GLES configured in make)
 #ifdef GLES
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 #else
     // Set OpenGL version (3.3 core is the default)

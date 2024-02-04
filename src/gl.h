@@ -5,7 +5,7 @@
 #include <GL/glew.h>
 #else
 #ifdef GLES
-#include <GLES3/gl32.h>
+#include <GLES3/gl31.h>
 #else
 // On linux, this is fine. Makefile defines GL_GLEXT_PROTOTYPES so that these
 // includes actually get us the full API.
