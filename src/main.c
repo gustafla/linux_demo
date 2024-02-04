@@ -153,7 +153,8 @@ int main(int argc, char *argv[]) {
     }
 
     // Initialize demo rendering
-    demo_t *demo = demo_init(WIDTH, HEIGHT);
+    demo_t *demo =
+        demo_init(WIDTH * RESOLUTION_SCALE, HEIGHT * RESOLUTION_SCALE);
     if (!demo) {
         return 1;
     }

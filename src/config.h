@@ -6,6 +6,7 @@
 
 #define WIDTH 1920
 #define HEIGHT 720
+#define RESOLUTION_SCALE 1
 #define BEATS_PER_MINUTE 16
 #define ROWS_PER_BEAT 32.
 
