@@ -63,5 +63,10 @@ void main() {
     // Vignette
     color -= length(FragCoord) * 0.1;
 
+    // Gamma correct on GL ES, sRGB framebuffer doesn't seem to work on ES
+    #ifdef GL_ES
+    color = pow(color, vec3(2.2));
+    #endif
+
     FragColor = vec4(color, 1.);
 }
