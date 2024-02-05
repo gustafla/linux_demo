@@ -68,5 +68,5 @@ void main() {
     color = pow(color, vec3(2.2));
     #endif
 
-    FragColor = vec4(color, 1.);
+    FragColor = vec4(clamp(color, 0., 1.), 1.);
 }
