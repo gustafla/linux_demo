@@ -5,8 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// In debug builds, because empty units are forbidden by C standard, we have
-// this no-op function.
 const unsigned char *filesystem_open(const char *filename, unsigned int *len) {
     return NULL;
 }
@@ -89,3 +87,24 @@ size_t read_file(const char *filename, char **dst) {
 }
 
 #endif
+
+char *path_join(const char *path, const char *name) {
+    size_t len_path = strlen(path), len_name = strlen(name);
+
+    // Allocate buffer for path + '/' + name + \0
+    char *fullpath = malloc(len_path + 1 + len_name + 1);
+    if (!fullpath) {
+        return NULL;
+    }
+
+    // Copy path to buffer
+    memcpy(fullpath, path, len_path);
+    // Insert /
+    fullpath[len_path] = '/';
+    // Copy name after path and /
+    memcpy(fullpath + len_path + 1, name, len_name);
+    // Insert null-terminator sentinel
+    fullpath[len_path + len_name + 1] = '\0';
+
+    return fullpath;
+}

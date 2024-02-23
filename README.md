@@ -149,7 +149,8 @@ which you can read starting from any file.
 Here is is a list of the source units in (subjectively) decreasing order of importance:
 - [`main.c`](src/main.c): Initializes window, OpenGL context, audio, music player, rocket. Contains demo's main loop.
 - [`demo.c`](src/demo.c)/[`demo.h`](src/demo.h): Most OpenGL calls happen in this unit.
-- [`shader.c`](src/shader.c)/[`shader.h`](src/shader.h): Utilities for loading and compiling shaders.
+- [`shader.c`](src/shader.c)/[`shader.h`](src/shader.h): Loading and compiling shaders.
+- [`preprocessor.c`](src/preprocessor.c)/[`preprocessor.h`](src/preprocessor.h): A limited GLSL preprocessor.
 - [`uniforms.c`](src/uniforms.c)/[`uniforms.h`](src/uniforms.h): Contains code for querying uniforms in shader programs.
 - [`music_player.c`](src/music_player.c)/[`music_player.h`](src/music_player.h): Music player with OGG Vorbis streaming, seeking and timing support for sync editor.
 - [`filesystem.c`](src/filesystem.c)/[`filesystem.h`](src/filesystem.h): Includes `data.c` which [`scripts/mkfs.sh`](scripts/mkfs.sh) generates at build time. Has functions for reading embedded files.
