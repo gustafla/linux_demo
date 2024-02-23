@@ -10,60 +10,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef DEBUG
-// This read_file implementation completely reads a file from disk.
-// Returns the number of bytes in the file, or 0 if the read failed.
-// Changes *dst via pointer dereference. If successful *dst will point to the
-// data, or sets it to NULL if unsuccessful.
-static size_t read_file(const char *filename, char **dst) {
-    FILE *file = fopen(filename, "rb");
-    if (!file) {
-        goto cleanup;
-    }
-
-    fseek(file, 0, SEEK_END);
-    size_t len = ftell(file);
-    if (!len) {
-        goto cleanup;
-    }
-
-    *dst = (char *)malloc(len);
-    fseek(file, 0, SEEK_SET);
-
-    size_t read = fread(*dst, sizeof(char), len, file);
-    fclose(file);
-    if (read != len)
-        goto cleanup;
-
-    return len;
-
-cleanup:
-    if (*dst) {
-        free(*dst);
-        *dst = NULL;
-    }
-    SDL_Log("Failed to read file %s\n", filename);
-    return 0;
-}
-#else
-// This read_file implementation gives access to a file in the executable
-// via `filesystem_open` (filesystem.c).
-// Returns the number of bytes in the file, or 0 if the read failed.
-// Changes *dst via pointer dereference. If successful *dst will point to the
-// data, or sets it to NULL if unsuccessful.
-static size_t read_file(const char *filename, char **dst) {
-    unsigned int len = 0;
-    const unsigned char *data = filesystem_open(filename, &len);
-    if (!data) {
-        SDL_Log("Cannot find file %s\n", filename);
-        *dst = NULL;
-        return 0;
-    }
-
-    *dst = (char *)data;
-    return len;
-}
-#endif
+// Why aren't we using stb_include.h?
+// The library would be ideal for our use,
+// but it doesn't support our binary-embedded filesystem hack.
 
 // This function maps shader file extensions like "vert" or "frag" to an enum
 // defined in shader.h
