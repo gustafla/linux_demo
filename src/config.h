@@ -14,9 +14,6 @@
 // value squared. This value affects required CPU->GPU bandwidth per frame.
 #define NOISE_SIZE (256 / 2)
 
-// Max length of #include filename in shaders
-#define MAX_INCLUDE_NAME_LEN 128
-
 // GLSL_VERSION is prefixed to every shader, change it if you need some other
 // version than specified here.
 #ifdef GLES
