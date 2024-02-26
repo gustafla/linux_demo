@@ -91,7 +91,7 @@ static char *find_include(char *src, size_t *start, size_t *rest,
 //    `path`: Directory prefix to search for files to include
 // Returns a new null-terminated string which the caller should free.
 // Invalidates `src`, dereferencing `src` after calling this function is UB.
-char *process_includes(char *src, size_t len, const char *path) {
+static char *process_includes(char *src, size_t len, const char *path) {
     char *filename;
     size_t start, rest;
     uint32_t lineno;
