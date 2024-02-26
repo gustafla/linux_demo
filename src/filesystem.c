@@ -1,9 +1,10 @@
-#ifdef DEBUG
-
 #include <SDL2/SDL_log.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
+
+#ifdef DEBUG
+
+#include <stdio.h>
 
 const unsigned char *filesystem_open(const char *filename, unsigned int *len) {
     return NULL;
