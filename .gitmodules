@@ -10,3 +10,6 @@
 	path = lib/rocket
 	url = https://github.com/rocket/rocket
 	branch = main
+[submodule "lib/cgltf"]
+	path = lib/cgltf
+	url = https://github.com/jkuhlmann/cgltf
