@@ -7,7 +7,7 @@ STRIP = strip --strip-all
 EXTRA_CFLAGS = -MMD -std=c99 -Wall -Wextra -Wpedantic -Wno-unused-parameter -I$(BUILDDIR)/include -L$(BUILDDIR)/lib
 SOURCEDIR = src
 SOURCES = $(wildcard $(SOURCEDIR)/*.c)
-LIBRARIES = $(BUILDDIR)/lib/librocket.a $(BUILDDIR)/include/stb_vorbis.c
+LIBRARIES = $(patsubst %,$(BUILDDIR)/%, lib/librocket.a include/stb_vorbis.c include/cgltf.h)
 DEBUG ?= 1
 
 
@@ -53,7 +53,7 @@ OBJS = $(SOURCES:%.c=$(OBJDIR)/%.o)
 DEPS = $(OBJS:%.o=%.d)
 
 
-# This rule is for linking the final executable
+# Rule for linking the final executable
 $(TARGET): $(OBJS)
 	@mkdir -p $(@D)
 	$(CC) -o $@ $(CFLAGS) $(EXTRA_CFLAGS) $^ $(LDFLAGS) $(LDLIBS)
@@ -74,25 +74,25 @@ endif
 -include $(DEPS)
 
 
-# This rule is for compiling our C source files
+# Rule for compiling our C source files
 $(OBJDIR)/%.o: %.c $(LIBRARIES)
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c -o $@ $<
 
 
-# This rule is a check for having fetched git submodules
+# Rule that checks for having fetched git submodules
 lib/SDL/configure:
 	@echo Please run git submodule update --init first!
 	@echo Check README.md for details.
 	@exit 1
 
 
-# This rule is for building SDL2
+# Rule for building SDL2
 $(BUILDDIR)/lib/libSDL2.a: | lib/SDL/configure
 	CC=$(CC) BUILDDIR=$(BUILDDIR) MAKE=$(MAKE) scripts/build_sdl2.sh
 
 
-# This rule is for building rocket libraries
+# Rule for building rocket libraries
 $(BUILDDIR)/lib/librocket.a: | lib/SDL/configure
 	$(MAKE) -C lib/rocket lib/librocket.a lib/librocket-player.a CFLAGS="-Os" CC=$(CC)
 	@mkdir -p $(BUILDDIR)/lib $(BUILDDIR)/include
@@ -100,19 +100,25 @@ $(BUILDDIR)/lib/librocket.a: | lib/SDL/configure
 	cp lib/rocket/lib/*.h $(BUILDDIR)/include
 
 
-# This rule is for copying stb_vorbis.c to library include directory
+# Rule for copying stb_vorbis.c to library include directory
 $(BUILDDIR)/include/stb_vorbis.c: lib/stb/stb_vorbis.c
 	@mkdir -p $(BUILDDIR)/include
 	cp $^ $@
 
 
-# This rule is for generating build/include/data.c
+# Rule for copying cgltf.h to library include directory
+$(BUILDDIR)/include/cgltf.h: lib/cgltf/cgltf.h
+	@mkdir -p $(BUILDDIR)/include
+	cp $^ $@
+
+
+# Rule for generating build/include/data.c
 $(BUILDDIR)/include/data.c: $(wildcard shaders/*) $(wildcard data/*)
 	@mkdir -p $(BUILDDIR)/include
 	scripts/mkfs.sh shaders/ data/ > $@
 
 
-# This generates a compile_commands.json file for clangd, clang-tidy etc. devtools
+# Generate a compile_commands.json file for clangd, clang-tidy etc. devtools
 compile_commands.json: $(SOURCES)
 	CC=$(CC) CFLAGS="$(CFLAGS) $(EXTRA_CFLAGS)" scripts/gen_compile_commands_json.sh $(SOURCEDIR) > $@
 
