@@ -21,7 +21,8 @@ typedef struct {
 // This searches for the filename from the generated C source (array called
 // data_filenames), and if a match is found, returns the corresponding
 // pointer and length.
-const unsigned char *filesystem_open(const char *filename, unsigned int *len) {
+static const unsigned char *filesystem_open(const char *filename,
+                                            unsigned int *len) {
     const char *search = data_filenames;
     for (int i = 0; *search != 0; i++) {
         if (strcmp(filename, search) == 0) {
