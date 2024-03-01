@@ -42,18 +42,7 @@ static void callback(void *userdata, Uint8 *stream, int len) {
 static stb_vorbis *open_vorbis(const char *filename) {
     int error = VORBIS__no_error;
 
-#ifdef DEBUG
     stb_vorbis *vorbis = stb_vorbis_open_filename(filename, &error, NULL);
-#else
-    unsigned int len;
-    const unsigned char *data = filesystem_open(filename, &len);
-    if (!data) {
-        SDL_Log("File %s not found\n", filename);
-        return NULL;
-    }
-
-    stb_vorbis *vorbis = stb_vorbis_open_memory(data, len, &error, NULL);
-#endif
 
     if (error != VORBIS__no_error) {
         vorbis = NULL;

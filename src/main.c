@@ -2,7 +2,6 @@
 #include "demo.h"
 #include "gl.h"
 #include "music_player.h"
-#include "rocket_io.h"
 #include <SDL2/SDL.h>
 #include <sync.h>
 
@@ -187,9 +186,6 @@ int main(int argc, char *argv[]) {
     uint64_t frame_check_time = SDL_GetTicks64();
     uint64_t max_frame_time = 0;
     uint64_t timestamp = 0;
-#else
-    // Set rocket io callback
-    sync_set_io_cb(rocket, &rocket_iocb);
 #endif
 
     // Here starts the demo's main loop

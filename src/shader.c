@@ -88,9 +88,8 @@ GLuint compile_shader_file(const char *filename, const shader_define_t *defines,
 
     GLuint shader = compile_shader(shader_src, shader_src_len, shader_type,
                                    defines, n_defs);
-#ifdef DEBUG
+
     free(shader_src);
-#endif
 
     if (shader == 0) {
         SDL_Log("File: %s\n", filename);

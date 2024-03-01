@@ -137,11 +137,9 @@ static char *process_includes(char *src, size_t len, const char *path) {
         snprintf(dst, linedir2_len + 1, "#line %i\n", lineno);
         src[start + linedir1_len + include_src_len + linedir2_len] = tmp;
 
-#ifdef DEBUG
         if (include_src) {
             free(include_src);
         }
-#endif
         free((void *)fullpath);
         free((void *)filename);
     }
