@@ -33,13 +33,13 @@ GNU `make` for simplicity.
 ### Ubuntu and Debian
 
 ```
-sudo apt install build-essential xxd libsdl2-dev libsamplerate-dev
+sudo apt install build-essential xxd libsdl2-dev
 ```
 
 ### Arch Linux
 
 ```
-sudo pacman -S base-devel vim sdl2 libsamplerate
+sudo pacman -S base-devel vim sdl2
 ```
 
 ## Building
@@ -87,7 +87,7 @@ Also try and see what other rocket tracks do.
 Your demo is getting ready and you want to build a release build? Just run
 
 ```
-make -j $(nproc) DEBUG=0
+make -j $(nproc) DEBUG=0 SELF_CONTAINED=1
 ```
 
 This builds a `release/demo` which can be copied anywhere and won't need the
@@ -106,9 +106,9 @@ Example run for `podman`, as your normal user:
 ```
 make clean
 podman run -it --rm -v.:/build ubuntu:20.04
-apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install build-essential xxd libsdl2-dev libsamplerate-dev libudev-dev
+apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install build-essential xxd libsdl2-dev
 cd /build
-make -j $(nproc) DEBUG=0
+make -j $(nproc) DEBUG=0 SELF_CONTAINED=1
 mv release/demo .
 make clean
 exit
@@ -116,13 +116,27 @@ exit
 
 Instructions for installing podman on Arch Linux can be found on the [Arch Wiki](https://wiki.archlinux.org/title/Podman).
 
+### Other build options:
+
+The Makefile also supports release builds without the `SELF_CONTAINED` feature.
+These builds read files from the host filesystem directories `data/` and `shaders/`.
+If you build without `SELF_CONTAINED=1`, you will have to distribute all data and
+shader files along with the executable.
+
+OpenGL ES 3.1 build on Linux can be enabled with the make option `GLES=1`.
+
+Experimental MinGW-w64 support also exists. Install `mingw-w64-sdl2` and
+`mingw-w64-make` from the AUR on Arch Linux, and run `x86_64-w64-mingw32-make`
+instead of `make`.
+
+**Always remember to run `make clean` before changing build options or plaforms!**
+
 ### Optional: compress the executable
 
 [`scripts/`](scripts/) has a [shell-dropping](https://in4k.github.io/wiki/linux#compression)
-packer which doesn't depend on anything special.
-This can reduce about half MB from filesize.
-However, this may reduce compatibility as it requires xz-utils
-to be installed and /tmp directory to allow executables.
+packer. This can reduce about 10% from filesize (ymmv).
+However, this may reduce compatibility as it requires `xz-utils`
+to be installed and `/tmp` directory to allow executables.
 
 ```
 scripts/pack.sh release/demo

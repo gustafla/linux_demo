@@ -1,14 +1,14 @@
 #include <SDL2/SDL_log.h>
-#include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifndef DEBUG
+#ifdef SELF_CONTAINED
 
 // This includes a script-generated C source file which contains resources
 // such as music .ogg file and shaders.
 #include "data.c"
+#include <errno.h>
 #include <string.h>
 
 // A support struct for reading from static memory as if it was a file
@@ -137,7 +137,7 @@ int __wrap_fclose(mem_file_t *file) {
     return 0;
 }
 
-#endif
+#endif // ifdef SELF_CONTAINED
 
 // This read_file implementation completely reads a file from disk.
 // Returns the number of bytes in the file, or 0 if the read failed.

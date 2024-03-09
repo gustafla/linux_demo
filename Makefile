@@ -36,14 +36,20 @@ endif
 ifeq ($(DEBUG),0)
 OBJDIR = $(RELEASEDIR)
 CFLAGS += -Os
-EXTRA_CFLAGS += -DSYNC_PLAYER -Wl,--wrap=fopen -Wl,--wrap=fseek -Wl,--wrap=rewind -Wl,--wrap=ftell -Wl,--wrap=feof -Wl,--wrap=ferror -Wl,--wrap=fread -Wl,--wrap=fgetc -Wl,--wrap=ungetc -Wl,--wrap=fclose
+EXTRA_CFLAGS += -DSYNC_PLAYER
 LDLIBS += -lrocket-player
-LIBRARIES += $(BUILDDIR)/include/data.c
 else
 OBJDIR = $(BUILDDIR)
 CFLAGS += -Og -g
 EXTRA_CFLAGS += -DDEBUG
 LDLIBS += -lrocket
+endif
+
+
+# Executable file system flags (self-contained, standalone executable)
+ifeq ($(SELF_CONTAINED),1)
+EXTRA_CFLAGS += -DSELF_CONTAINED -Wl,--wrap=fopen -Wl,--wrap=fseek -Wl,--wrap=rewind -Wl,--wrap=ftell -Wl,--wrap=feof -Wl,--wrap=ferror -Wl,--wrap=fread -Wl,--wrap=fgetc -Wl,--wrap=ungetc -Wl,--wrap=fclose
+LIBRARIES += $(BUILDDIR)/include/data.c
 endif
 
 
